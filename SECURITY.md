@@ -6,8 +6,13 @@ deploy it.
 
 ## Threat model
 **Where it runs.** TabDeck is meant to run inside a private network you control, such as NetBird, Tailscale or
-WireGuard. **Do not expose the hub or the Mac agent to the internet.** The hub listens on `127.0.0.1` and on the
-private-network IP you give it, never on `0.0.0.0`.
+WireGuard. **Do not expose the hub or the Mac agent to the internet.**
+- **Listening:** the hub listens on `127.0.0.1` and on the private-network IP you give it, never on `0.0.0.0`. It
+  refuses a public address: if the configured IP is not private, VPN (100.64.0.0/10) or loopback, it logs why and
+  serves localhost only. `tabdeck setup` rejects a public hub IP too.
+- **Proxies:** don't put a reverse proxy or tunnel (nginx, Caddy, Cloudflare Tunnel, ngrok) in front of it. If you
+  do anyway, requests carrying proxy headers (`X-Forwarded-For`, `Forwarded`, `X-Real-IP`, `CF-Connecting-IP`, …) are
+  never trusted as local, so they must pair like any remote device.
 
 **Who is trusted:**
 - **Anyone with a shell on the hub server or your Mac.** Requests from `localhost` are trusted on both, so
