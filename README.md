@@ -13,38 +13,10 @@ TabDeck has two halves: **your Mac** (the widget and a small agent) and **an alw
 hub, where the sessions live. The widget alone does nothing: it talks to the hub, and `tabdeck setup` installs both
 halves.
 
-```mermaid
-flowchart LR
-  subgraph mac["💻 Your Mac"]
-    widget["TabDeck widget<br/>(menu bar, wake word)"]
-    agent["Mac agent<br/>tabdeck agent"]
-    iterm["iTerm2<br/>(Python API on)"]
-    whisper["Whisper on the Mac<br/>(default speech-to-text)"]
-    widget --> agent
-    agent --> whisper
-    agent <--> iterm
-  end
-  phone["📱 Phone / browser<br/>(paired web app)"]
-  subgraph hub["🖥️ Always-on server (the hub)"]
-    serve["Hub<br/>tabdeck serve"]
-    tmux["tmux session<br/>one window per session"]
-    coder["Claude Code or OpenCode"]
-    serve <--> tmux
-    tmux --> coder
-  end
-  subgraph svc["🧠 Model and speech services (optional)"]
-    llm["Language model<br/>Ollama or OpenAI-compatible"]
-    stt["Speech-to-text<br/>OpenAI-compatible Whisper"]
-    tts["Neural voice<br/>Kokoro"]
-  end
-  widget -- "HTTPS over your private network" --> serve
-  phone -- HTTPS --> serve
-  agent -- "your iTerm tabs" --> serve
-  iterm -- "ssh + tmux -CC:<br/>sessions appear as tabs" --> tmux
-  serve --> llm
-  serve --> tts
-  serve -.-> stt
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/architecture-dark.png">
+  <img alt="TabDeck architecture: on your Mac, the widget and the Mac agent talk to the hub on an always-on server, which runs the agent sessions in tmux; iTerm2 shows those sessions as tabs; a paired phone uses the hub's web app; the hub can use an optional language model, speech-to-text and voice, all three from one ODS server if you like." src="docs/architecture.png">
+</picture>
 
 | Where | What runs there | Installed by |
 |---|---|---|
