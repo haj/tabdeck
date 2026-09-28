@@ -41,7 +41,15 @@ uv sync
 uv run tabdeck setup        # asks 3–4 questions, deploys the hub, installs the Mac agent and the widget
 ```
 
-Then say **"Jarvis, what's going on?"**. `setup` ends by pairing this Mac's browser and showing a QR code: scan it
+Then say **"Jarvis, what's going on?"**.
+
+**The wake word.** A new installation answers to **"Jarvis"**; "Hey Jarvis" and "Okay Jarvis" work too. It has to
+start what you say (or a sentence), so "tell Jarvis…" in the middle of a sentence doesn't wake it. To use another
+name, answer `setup`'s *Assistant name* question (the wake word follows it, e.g. Friday → `friday`), or pass
+`--assistant Friday --wake "hey friday"`. You can change both at any time from the widget (menu bar icon →
+**Settings…**) or the ⚙ sheet on the web page; the change applies at once.
+
+`setup` ends by pairing this Mac's browser and showing a QR code: scan it
 with your phone, then add the page to the Home Screen. To pair more devices later, run `tabdeck pair` or use the
 widget menu → **Pair a phone…**. Everything is configurable later from the widget (click the menu bar
 icon → **Settings…**), and **Help…** in the same menu explains the rest.
@@ -72,7 +80,7 @@ jobs, cron lines and tmux sessions.
 | Setting | Default | Meaning |
 |---|---|---|
 | `agent` | `claude` | `claude` or `opencode` |
-| `assistant_name` / `wake_word` | `Jarvis` / `jarvis` | any name, e.g. `Friday` / `hey friday` |
+| `assistant_name` / `wake_word` | `Jarvis` / `jarvis` | what the assistant is called and answers to; any word or two, e.g. `Friday` / `hey friday` |
 | `port` | `8765` | hub and Mac agent port |
 | `tmux_session` | `deck` | tmux session on servers |
 | `projects_dir` | `~/Projects` | the hub's projects folder: ＋ lists its folders, and *New project* creates one there |
