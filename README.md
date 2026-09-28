@@ -8,6 +8,60 @@ replies aloud, and approves, replies to or starts sessions.
 TabDeck can use your own model and speech services, for example an [ODS](https://github.com/Osmantic/ODS) server
 for the language model, Whisper and Kokoro.
 
+## How it fits together
+TabDeck has two halves: **your Mac** (the widget and a small agent) and **an always-on Linux server**, called the
+hub, where the sessions live. The widget alone does nothing: it talks to the hub, and `tabdeck setup` installs both
+halves.
+
+```mermaid
+flowchart LR
+  subgraph mac["💻 Your Mac"]
+    widget["TabDeck widget<br/>(menu bar, wake word)"]
+    agent["Mac agent<br/>tabdeck agent"]
+    iterm["iTerm2<br/>(Python API on)"]
+    whisper["Whisper on the Mac<br/>(default speech-to-text)"]
+    widget --> agent
+    agent --> whisper
+    agent <--> iterm
+  end
+  phone["📱 Phone / browser<br/>(paired web app)"]
+  subgraph hub["🖥️ Always-on server (the hub)"]
+    serve["Hub<br/>tabdeck serve"]
+    tmux["tmux session<br/>one window per session"]
+    coder["Claude Code or OpenCode"]
+    serve <--> tmux
+    tmux --> coder
+  end
+  subgraph svc["🧠 Model and speech services (optional)"]
+    llm["Language model<br/>Ollama or OpenAI-compatible"]
+    stt["Speech-to-text<br/>OpenAI-compatible Whisper"]
+    tts["Neural voice<br/>Kokoro"]
+  end
+  widget -- "HTTPS over your private network" --> serve
+  phone -- HTTPS --> serve
+  agent -- "your iTerm tabs" --> serve
+  iterm -- "ssh + tmux -CC:<br/>sessions appear as tabs" --> tmux
+  serve --> llm
+  serve --> tts
+  serve -.-> stt
+```
+
+| Where | What runs there | Installed by |
+|---|---|---|
+| **Mac** | the widget, the Mac agent, iTerm2, Whisper (on Apple silicon, unless you use a speech server) | `tabdeck setup` (you install iTerm2, Xcode tools, uv, mkcert) |
+| **Always-on server** | the hub (web page, phone app, assistant), tmux, Claude Code or OpenCode, cron for reboot resume | `tabdeck setup`, over ssh (you install tmux and the coding agent) |
+| **Phone / browser** | nothing to install: pair it and add the page to the Home Screen | `tabdeck pair` |
+| **Services** | a language model, speech-to-text and a voice, all optional | yours, or all three from one [ODS](https://github.com/Osmantic/ODS) server |
+
+**Services, and what happens without them:**
+- **Language model** (Ollama, or any OpenAI-compatible server such as ODS's LiteLLM): understands free-form
+  requests and summarises sessions. Without it, TabDeck understands a fixed set of commands ("status", "approve",
+  "go to api").
+- **Speech-to-text**: Whisper runs on the Mac by default. Set `stt_url` to use a Whisper server instead, e.g. ODS's.
+- **Voice** (a Kokoro server, e.g. ODS's): the neural voice. Without it, the widget speaks with a macOS voice.
+- **ODS** provides all three plus OpenCode, so one ODS server can be the whole right-hand side: run
+  `tabdeck setup --ods` against it.
+
 ## Quickstart
 ### Prerequisites
 `tabdeck setup` checks these first and tells you how to fix anything missing.
