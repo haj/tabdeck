@@ -24,8 +24,8 @@ uv run tabdeck setup        # asks 3–4 questions, deploys the hub, installs th
 
 Then say **"Jarvis, what's going on?"**. `setup` ends by pairing this Mac's browser and showing a QR code: scan it
 with your phone, then add the page to the Home Screen. To pair more devices later, run `tabdeck pair` or use the
-widget menu → **Pair a phone…**. Everything is configurable later from the widget (menu bar icon →
-right-click → **Settings…**), and **Help…** in the same menu explains the rest.
+widget menu → **Pair a phone…**. Everything is configurable later from the widget (click the menu bar
+icon → **Settings…**), and **Help…** in the same menu explains the rest.
 
 **Prebuilt widget.** Each [release](../../releases) has `DeckWidget.zip`. Unzip it into `~/Applications`, then
 right-click → *Open* the first time, because it is not notarized. `tabdeck setup` builds the widget from source
