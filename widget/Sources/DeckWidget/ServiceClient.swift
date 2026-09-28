@@ -3,6 +3,18 @@ import Foundation
 
 enum ServiceError: Error {
     case http(Int, String)
+
+    /// What to show the user: the hub's list of refused settings, or its message.
+    var message: String {
+        guard case .http(let code, let body) = self else { return "" }
+        if let json = try? JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any] {
+            if let detail = json["detail"] as? [String: Any], let errors = detail["errors"] as? [String] {
+                return errors.joined(separator: "\n")
+            }
+            if let detail = json["detail"] as? String { return detail }
+        }
+        return code == 0 ? "Not reachable" : "HTTP \(code)"
+    }
 }
 
 /// Talks to the local TabDeck service (mkcert certificate is trusted via the system keychain).
@@ -27,6 +39,14 @@ final class ServiceClient {
         socket = task
         task.resume()
         receive(task)
+    }
+
+    /// Connect again, e.g. after the hub address or token changed.
+    func reconnect() {
+        let old = socket
+        socket = nil
+        old?.cancel(with: .goingAway, reason: nil)
+        connect()
     }
 
     private func receive(_ task: URLSessionWebSocketTask) {
@@ -70,7 +90,8 @@ final class ServiceClient {
         return data
     }
 
-    func voice(wav: Data, selected: String?, followup: Bool, compose: Bool, confirming: Bool, final: Bool, length: String) async throws -> VoiceResponse {
+    func voice(wav: Data, selected: String?, followup: Bool, compose: Bool, confirming: Bool, final: Bool, length: String,
+               hint: String) async throws -> VoiceResponse {
         let boundary = "deck-\(UUID().uuidString)"
         var body = Data()
         func field(_ name: String, _ value: String) {
@@ -83,6 +104,7 @@ final class ServiceClient {
         field("confirming", confirming ? "1" : "0")
         field("final", final ? "1" : "0")
         field("length", length)
+        field("hint", hint)  // the hub's current name, so Whisper expects the right wake word
         body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n".utf8))
         body.append(wav)
         body.append(Data("\r\n--\(boundary)--\r\n".utf8))
@@ -114,6 +136,55 @@ final class ServiceClient {
 
     func seen(_ id: String) async {
         _ = try? await request("api/sessions/\(id)/seen", method: "POST")
+    }
+
+    // MARK: settings (hub: shared by every device; local: this Mac's agent)
+
+    private func json(_ data: Data) throws -> [String: Any] {
+        (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+    }
+
+    func settings(local: Bool = false) async throws -> [String: Any] {
+        try json(await request(local ? "api/local-settings" : "api/settings", local: local))
+    }
+
+    func saveSettings(_ changes: [String: Any], local: Bool = false) async throws -> [String: Any] {
+        try json(await request(local ? "api/local-settings" : "api/settings", method: "POST", json: changes, local: local))
+    }
+
+    func reloadSettings(local: Bool = false) async throws -> [String: Any] {
+        try json(await request(local ? "api/local-settings/reload" : "api/settings/reload", method: "POST", local: local))
+    }
+
+    func testWake(_ text: String) async throws -> (matches: Bool, rest: String) {
+        let r = try json(await request("api/settings/test-wake", method: "POST", json: ["text": text]))
+        return (r["matches"] as? Bool ?? false, r["rest"] as? String ?? "")
+    }
+
+    /// English voices of the hub's voice server.
+    func voices() async -> [String] {
+        guard let data = try? await request("api/tts/voices"), let r = try? json(data) else { return [] }
+        return r["voices"] as? [String] ?? []
+    }
+
+    /// One sentence in the hub's voice (its voice server and chosen voice), or nil if it is unavailable.
+    func tts(_ text: String) async -> Data? {
+        var components = URLComponents(url: hub.appendingPathComponent("api/tts"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "text", value: text)]
+        // Synthesis time grows with length: allow ~3 s plus 1 s per 50 characters.
+        var req = URLRequest(url: components.url!, timeoutInterval: 3 + Double(text.count) / 50)
+        if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        do {
+            let (data, resp) = try await session.data(for: req)
+            guard (resp as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else {
+                deckLog("hub voice: HTTP \((resp as? HTTPURLResponse)?.statusCode ?? 0)")
+                return nil
+            }
+            return data
+        } catch {
+            deckLog("hub voice error: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     func newSession(_ project: String, task: String? = nil, where place: String? = nil) async throws -> String {

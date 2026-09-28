@@ -32,6 +32,12 @@ final class AppModel: ObservableObject {
     @Published private var followupTick = 0
     @Published var answerLength = AppModel.setting("answer_length") ?? "normal"
     @Published var voices: [String] = []
+    /// The assistant's name and wake phrase: from the hub's live settings (the build's values until it answers).
+    @Published var assistantName = Instance.assistant
+    @Published var wakePhrase = Instance.wakePhrase
+    var idleLine: String { "Say “\(wakePhrase), status”" }
+    /// The hint Whisper gets: 'ODS ("Hey ODS")', or just 'Jarvis'.
+    var nameHint: String { wakePhrase.caseInsensitiveCompare(assistantName) == .orderedSame ? assistantName : "\(assistantName) (\"\(wakePhrase)\")" }
 
     let client = ServiceClient()
     let speaker = Speaker()
@@ -90,8 +96,7 @@ final class AppModel: ObservableObject {
 
     func chooseVoice(_ v: String) {
         speaker.ttsVoice = v
-        Self.saveSetting("tts_voice", v)
-        Task { await client.setVoice(v) }  // the web page and phone use it too
+        Task { await client.setVoice(v) }  // kept on the hub: the web page and phone use it too
         say("Hello, this is my new voice.")
     }
 
@@ -100,15 +105,45 @@ final class AppModel: ObservableObject {
         Self.saveSetting("answer_length", l)
     }
 
-    func start() {
+    /// This Mac's settings.json: the hub to use, its token, and the fallback macOS voice. Returns whether the hub changed.
+    @discardableResult
+    func loadMacSettings() -> Bool {
         speaker.setVoice(Self.setting("voice") ?? "Daniel")
-        if let url = Self.setting("tts_url") { speaker.ttsURL = URL(string: url) }
-        if let v = Self.setting("tts_voice") { speaker.ttsVoice = v }
-        deckLog("neural voice: \(speaker.ttsURL?.absoluteString ?? "off") \(speaker.ttsVoice)")
-        Task { voices = await speaker.availableVoices() }
+        let before = (client.hub, client.token)
         if let h = Self.setting("hub_url"), let u = URL(string: h.hasSuffix("/") ? h : h + "/") { client.hub = u }
         client.token = Self.setting("agent_token")
         deckLog("hub: \(client.hub.absoluteString)")
+        return before.0 != client.hub || before.1 != client.token
+    }
+
+    /// Re-read every setting: this Mac's settings.json, the Mac agent's and the hub's (e.g. after editing files).
+    func reloadConfig() {
+        Task {
+            if loadMacSettings() { client.reconnect() }
+            var notes: [String] = []
+            for local in [false, true] {
+                do {
+                    let r = try await client.reloadSettings(local: local)
+                    notes += r["restart_needed"] as? [String] ?? []
+                } catch {
+                    notes.append("\(local ? "Mac agent" : "hub") not reachable")
+                }
+            }
+            voices = await client.voices()
+            deckLog("config reloaded\(notes.isEmpty ? "" : "; " + notes.joined(separator: ", "))")
+            say(notes.isEmpty ? "Settings reloaded." : "Settings reloaded. Still needed: \(notes.joined(separator: ", ")).")
+        }
+    }
+
+    func openSettings() {
+        SettingsWindow.show(model: self)
+    }
+
+    func start() {
+        loadMacSettings()
+        let client = self.client
+        speaker.neural = { await client.tts($0) }  // the hub's voice server and voice
+        Task { voices = await client.voices() }
         client.onState = { [weak self] m in self?.apply(m) }
         client.onConnection = { [weak self] ok in
             guard let self else { return }
@@ -177,6 +212,13 @@ final class AppModel: ObservableObject {
             speaker.ttsVoice = v  // one voice everywhere: the hub decides
             deckLog("voice from hub: \(v)")
         }
+        if let n = m.assistant_name, let w = m.wake_phrase, (n, w) != (assistantName, wakePhrase) {
+            let wasIdle = line == idleLine
+            assistantName = n
+            wakePhrase = w
+            if wasIdle { line = idleLine }
+            deckLog("assistant from hub: \(n) (\(w))")
+        }
         for s in sessions where old[s.id] != nil && old[s.id] != s.status {
             chunks[s.id] = nil
         }
@@ -230,7 +272,7 @@ final class AppModel: ObservableObject {
         do {
             let r = try await client.voice(wav: wavData(samples: samples), selected: selected, followup: followup,
                                            compose: composeNow, confirming: confirmingNow, final: final,
-                                           length: answerLength)
+                                           length: answerLength, hint: nameHint)
             if r.incomplete == true && !final {
                 deckLog("sounds unfinished, listening for more")
                 holdForMore(samples)
@@ -391,7 +433,7 @@ final class AppModel: ObservableObject {
     func togglePause() {
         micPaused.toggle()
         capture.paused = micPaused
-        line = micPaused ? "Mic paused" : "Say “\(Instance.wakePhrase), status”"
+        line = micPaused ? "Mic paused" : idleLine
     }
 
     // MARK: pending reply

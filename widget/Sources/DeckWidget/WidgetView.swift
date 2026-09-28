@@ -86,7 +86,7 @@ struct WidgetView: View {
         if model.micDenied { return "Microphone access needed" }
         if model.needsYou > 0 { return "\(model.needsYou) need\(model.needsYou == 1 ? "s" : "") you" }
         if let id = model.selected, let s = model.sessions.first(where: { $0.id == id }) { return s.name }
-        return Instance.assistant
+        return model.assistantName
     }
 
     private func pendingView(_ p: AppModel.Pending) -> some View {

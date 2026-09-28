@@ -119,3 +119,11 @@ dialog { width: min(480px, calc(100vw - 32px)); max-height: 80dvh; color: var(--
 .item.offline { opacity: .45; }
 .server { margin-left: .4em; padding: 0 .4em; border-radius: .6em; font-size: .75em; font-weight: 400;
   background: var(--line); color: var(--muted); vertical-align: middle; }
+
+.settings fieldset { border: 1px solid var(--line); border-radius: 12px; margin: 0 0 12px; padding: 8px 12px; }
+.settings legend { font-weight: 600; padding: 0 4px; }
+.settings label { display: block; margin: 8px 0; font-size: .9em; color: var(--muted); }
+.settings label input, .settings label select, .settings fieldset > input { display: block; width: 100%; box-sizing: border-box;
+  margin-top: 4px; padding: 8px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.settings .primary { background: var(--accent); color: #fff; }
+.settings p.muted { white-space: pre-line; }

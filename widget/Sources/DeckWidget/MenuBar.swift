@@ -27,7 +27,10 @@ final class MenuBar: NSObject, NSMenuDelegate {
                              action: #selector(pickLength(_:))))
         if model.micDenied { add(menu, "Grant microphone access…", #selector(openMicSettings)) }
         menu.addItem(.separator())
-        add(menu, "Quit \(Instance.assistant)", #selector(quit))
+        add(menu, "Settings…", #selector(openSettings))
+        add(menu, "Reload config", #selector(reloadConfig))
+        menu.addItem(.separator())
+        add(menu, "Quit \(model.assistantName)", #selector(quit))
     }
 
     private func submenu(_ title: String, options: [String], current: String, action: Selector) -> NSMenuItem {
@@ -57,6 +60,8 @@ final class MenuBar: NSObject, NSMenuDelegate {
     @objc private func togglePause() { model.togglePause() }
     @objc private func toggleWidget() { panel.isVisible ? panel.orderOut(nil) : panel.orderFrontRegardless() }
     @objc private func openPage() { model.openWebPage() }
+    @objc private func openSettings() { model.openSettings() }
+    @objc private func reloadConfig() { model.reloadConfig() }
     @objc private func openMicSettings() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!)
     }

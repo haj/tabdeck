@@ -1,7 +1,7 @@
 import AVFoundation
 import DeckCore
 
-/// Speaks with a Kokoro neural voice from the TTS server when configured, else with a macOS voice.
+/// Speaks with the hub's neural voice (its voice server, e.g. Kokoro) when it has one, else with a macOS voice.
 /// Reports when it starts and stops so the mic can be paused meanwhile.
 final class Speaker: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate {
     private let synth = AVSpeechSynthesizer()
@@ -16,19 +16,10 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegat
     var muted = false
     private(set) var voice: AVSpeechSynthesisVoice?
     private var wantedVoice: String?
-    /// e.g. "http://<kokoro-host>:8880" and "af_heart" (settings.json: tts_url, tts_voice).
-    var ttsURL: URL?
+    /// One sentence of neural speech (ServiceClient.tts: the hub's voice server and voice); nil: macOS voice only.
+    var neural: ((String) async -> Data?)?
+    /// The hub's chosen voice, for the menu and the log.
     var ttsVoice = "af_heart"
-
-    /// English Kokoro voices offered by the server, for the menu.
-    func availableVoices() async -> [String] {
-        guard let ttsURL,
-              let (data, _) = try? await URLSession.shared.data(from: ttsURL.appendingPathComponent("v1/audio/voices")),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let list = json["voices"] as? [Any] else { return [] }
-        let ids = list.compactMap { ($0 as? String) ?? (($0 as? [String: Any])?["id"] as? String) }
-        return ids.filter { ["af_", "am_", "bf_", "bm_"].contains(String($0.prefix(3))) && !$0.contains("_v0") }.sorted()
-    }
 
     override init() {
         super.init()
@@ -81,8 +72,8 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegat
         let text = queue.removeFirst()
         onSpeaking?(true)
         let neuralDown = neuralFailedAt.map { Date().timeIntervalSince($0) < 60 } ?? false
-        guard let ttsURL, !neuralDown else { return sayLocally(text) }
-        let audioTask = audioTask(for: text, url: ttsURL)  // on the main thread: touches `prefetched`
+        guard let neural, !neuralDown else { return sayLocally(text) }
+        let audioTask = audioTask(for: text, neural: neural)  // on the main thread: touches `prefetched`
         fetch = Task { [weak self] in
             let audio = await audioTask.value
             await MainActor.run {
@@ -106,41 +97,19 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegat
         }
     }
 
-    private func audioTask(for text: String, url: URL) -> Task<Data?, Never> {
+    private func audioTask(for text: String, neural: @escaping (String) async -> Data?) -> Task<Data?, Never> {
         if let p = prefetched, p.text == text {
             prefetched = nil
             return p.task
         }
-        let voice = ttsVoice
-        return Task { await Self.synthesize(text, url: url, voice: voice) }
+        return Task { await neural(text) }
     }
 
     /// Fetch the next sentence while the current one plays.
     private func prefetchNext() {
-        guard neuralFailedAt.map({ Date().timeIntervalSince($0) >= 60 }) ?? true, let url = ttsURL, let text = queue.first, prefetched?.text != text else { return }
-        let voice = ttsVoice
-        prefetched = (text, Task { await Self.synthesize(text, url: url, voice: voice) })
-    }
-
-    private static func synthesize(_ text: String, url: URL, voice: String) async -> Data? {
-        // CPU synthesis time grows with length: allow ~2 s plus 1 s per 50 characters.
-        var req = URLRequest(url: url.appendingPathComponent("v1/audio/speech"),
-                             timeoutInterval: 2 + Double(text.count) / 50)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try? JSONSerialization.data(withJSONObject: [
-            "model": "kokoro", "input": text, "voice": voice, "response_format": "mp3"])
-        do {
-            let (data, resp) = try await URLSession.shared.data(for: req)
-            guard (resp as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else {
-                deckLog("neural voice: HTTP \((resp as? HTTPURLResponse)?.statusCode ?? 0)")
-                return nil
-            }
-            return data
-        } catch {
-            deckLog("neural voice error: \(error.localizedDescription)")
-            return nil
-        }
+        guard neuralFailedAt.map({ Date().timeIntervalSince($0) >= 60 }) ?? true, let neural, let text = queue.first,
+              prefetched?.text != text else { return }
+        prefetched = (text, Task { await neural(text) })
     }
 
     private func sayLocally(_ text: String) {
