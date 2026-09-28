@@ -3,6 +3,7 @@ import DeckCore
 
 /// Speaks with the hub's neural voice (its voice server, e.g. Kokoro) when it has one, else with a macOS voice.
 /// Reports when it starts and stops so the mic can be paused meanwhile.
+@MainActor
 final class Speaker: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate {
     private let synth = AVSpeechSynthesizer()
     private var player: AVAudioPlayer?
@@ -74,25 +75,24 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegat
         let neuralDown = neuralFailedAt.map { Date().timeIntervalSince($0) < 60 } ?? false
         guard let neural, !neuralDown else { return sayLocally(text) }
         let audioTask = audioTask(for: text, neural: neural)  // on the main thread: touches `prefetched`
-        fetch = Task { [weak self] in
+        // The whole task runs on the main thread (where the speaker lives); only the fetch itself awaits elsewhere.
+        fetch = Task { @MainActor [weak self] in
             let audio = await audioTask.value
-            await MainActor.run {
-                guard let self, !Task.isCancelled else { return }
-                self.fetch = nil
-                if let audio, let p = try? AVAudioPlayer(data: audio) {
-                    self.neuralFailedAt = nil
-                    deckLog("neural voice \(self.ttsVoice): \(audio.count / 1024) KB")
-                    p.delegate = self
-                    self.player = p
-                    p.play()
-                    self.prefetchNext()
-                } else {
-                    deckLog("neural voice unavailable, using fallback voice for a minute")
-                    self.neuralFailedAt = Date()
-                    self.prefetched?.task.cancel()
-                    self.prefetched = nil
-                    self.sayLocally(text)
-                }
+            guard let self, !Task.isCancelled else { return }
+            self.fetch = nil
+            if let audio, let p = try? AVAudioPlayer(data: audio) {
+                self.neuralFailedAt = nil
+                deckLog("neural voice \(self.ttsVoice): \(audio.count / 1024) KB")
+                p.delegate = self
+                self.player = p
+                p.play()
+                self.prefetchNext()
+            } else {
+                deckLog("neural voice unavailable, using fallback voice for a minute")
+                self.neuralFailedAt = Date()
+                self.prefetched?.task.cancel()
+                self.prefetched = nil
+                self.sayLocally(text)
             }
         }
     }
@@ -122,15 +122,17 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegat
         synth.speak(u)
     }
 
-    func audioPlayerDidFinishPlaying(_ p: AVAudioPlayer, successfully flag: Bool) {
-        DispatchQueue.main.async {
-            guard p === self.player else { return }
+    // AVFoundation calls these on its own thread: hop to the main thread, where the speaker lives.
+    nonisolated func audioPlayerDidFinishPlaying(_ p: AVAudioPlayer, successfully flag: Bool) {
+        let id = ObjectIdentifier(p)
+        Task { @MainActor in
+            guard let current = self.player, ObjectIdentifier(current) == id else { return }
             self.player = nil
             self.next()
         }
     }
 
-    func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        DispatchQueue.main.async { if !self.synth.isSpeaking { self.next() } }
+    nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        Task { @MainActor in if !self.synth.isSpeaking { self.next() } }
     }
 }
