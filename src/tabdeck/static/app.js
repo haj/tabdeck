@@ -222,7 +222,7 @@ function render() {
 function renderList() {
   const list = $('#list');
   list.replaceChildren();
-  if (!S.sessions.length) { list.append(mk('p', 'empty', 'No iTerm tabs found.')); return; }
+  if (!S.sessions.length) { list.append(mk('p', 'empty', 'no sessions yet: start one with + or say “start Claude in myproject”')); return; }
   S.sessions.forEach((s, i) => {
     const b = document.createElement('button');
     b.className = `item ${s.status}${s.id === S.selected ? ' selected' : ''}${s.seen ? '' : ' unseen'}${s.offline ? ' offline' : ''}`;

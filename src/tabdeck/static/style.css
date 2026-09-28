@@ -152,7 +152,7 @@ body.show-detail #back { display: grid; }
 .pending label { color: var(--muted); font-size: 12px; }
 .pending label b { color: var(--cyan); }
 .pending textarea {
-  width: 100%; margin: 8px 0; padding: 8px; font: inherit; color: var(--text);
+  width: 100%; margin: 8px 0; padding: 8px; font: inherit; font-size: 16px; color: var(--text);
   background: var(--term); border: 1px solid var(--line); border-radius: 6px; resize: vertical;
 }
 .pending .row { justify-content: flex-end; }
@@ -168,18 +168,19 @@ body.show-detail #back { display: grid; }
   white-space: nowrap; text-overflow: ellipsis; }
 .heard:not(:empty)::before { content: "» "; color: var(--magenta); }
 .typed {
-  flex: 1; display: flex; align-items: center; min-width: 0; height: 48px; padding: 0 4px 0 12px;
-  background: var(--term); border: 1px solid var(--line); border-radius: 10px;
+  flex: 1; display: flex; align-items: center; min-width: 0; height: 50px; padding: 0 4px 0 12px;
+  background: #151b25; border: 1px solid #334055; border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .03);
 }
-.typed:focus-within { border-color: var(--cyan); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cyan) 18%, transparent); }
+.typed:focus-within { background: #18202c; border-color: var(--cyan); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cyan) 25%, transparent); }
 .typed::before { content: "❯"; margin-right: 8px; color: var(--green); font-weight: 700; }
 .typed input {
-  flex: 1; min-width: 0; height: 100%; padding: 0; font: inherit; font-size: 14px; color: var(--text);
-  background: none; border: 0; outline: none; caret-color: var(--green);
+  flex: 1; min-width: 0; height: 100%; padding: 0; font: inherit; font-size: 16px;  /* 16px: iPhones don't zoom in */
+  color: #f0f4fa; background: none; border: 0; outline: none; caret-color: var(--green);
 }
-.typed input::placeholder { color: #465063; }
-.typed .btn { min-height: 36px; padding: 4px 10px; color: var(--muted); background: none; border-color: transparent; }
-.typed .btn:hover { color: var(--green); border-color: var(--line); }
+.typed input::placeholder { color: #8290a6; opacity: 1; }
+.typed .btn { min-height: 38px; padding: 4px 10px; color: #a9b4c6; background: #1d2532; border-color: #334055; }
+.typed .btn:hover { color: var(--green); border-color: var(--green); }
 .talk {
   position: relative; flex: none; display: grid; place-items: center; width: 56px; height: 56px; color: var(--green);
   background: var(--term); border: 1px solid color-mix(in srgb, var(--green) 45%, var(--line)); border-radius: 50%; cursor: pointer;
@@ -221,8 +222,8 @@ dialog form > .btn { margin: 4px 6px 0 0; }
 .settings legend::before { content: "# "; color: var(--muted); }
 .settings label { display: block; margin: 8px 0; color: var(--muted); font-size: 12px; }
 .settings label input, .settings label select, .settings fieldset > input {
-  display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; font-size: 13px; color: var(--text);
-  background: var(--term); border: 1px solid var(--line); border-radius: 6px; outline: none;
+  display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; font-size: 16px; color: var(--text);
+  background: #151b25; border: 1px solid #334055; border-radius: 6px; outline: none;
 }
 .settings input:focus, .settings select:focus { border-color: var(--cyan); }
 .settings p.muted { margin: 4px 0; white-space: pre-line; font-size: 12px; }
