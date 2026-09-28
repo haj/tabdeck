@@ -93,8 +93,7 @@ tests"**, **"approve"** or **"catch me up"**. Everything also works from the web
 **Releases.** Push a tag such as `v0.2.0`; only repository admins can, because of the "release tags" ruleset.
 `.github/workflows/release.yml` then runs three jobs:
 1. **test** (no secrets): runs every test.
-2. **sign** (environment `release`): waits for your approval under *Actions*, then builds the widget app, signs it
-   and notarizes it.
+2. **sign** (environment `release`, usable only by `v*` tags): builds the widget app, signs it and notarizes it.
 3. **publish** (no secrets): creates the GitHub Release with `DeckWidget.zip` and its SHA-256.
 
 The signing secrets live only in the `release` environment (Settings → Environments → release):

@@ -2,7 +2,7 @@ name: Release
 # Push a tag like v0.2.0 (only repository admins can: see the "release tags" ruleset).
 # Three jobs, so the signing secrets exist in one small job only:
 #   test    no secrets: Python and widget tests
-#   sign    environment "release" (waits for the owner's approval; its secrets live there): build, sign, notarize
+#   sign    environment "release" (only v* tags; any signing secrets live there): build, sign, notarize
 #   publish no secrets: creates the GitHub Release from the signed zip
 # Every action is pinned to a commit; checkouts keep no Git token.
 on:
