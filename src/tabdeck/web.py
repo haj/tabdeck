@@ -20,8 +20,9 @@ from starlette.websockets import WebSocketDisconnect
 from urllib.parse import urlsplit
 
 from .auth import Auth, is_local
+from . import settings as live_settings
 from .commands import Command, normalize, parse, resolve, strip_wake, wake_pattern
-from .config import Config
+from .config import Config, load_config
 from .projects import all_projects, clone, load_remotes, valid_name
 from .remote_source import AgentError, AgentOffline, AgentTimeout
 from .intent import llm_action
@@ -86,6 +87,12 @@ class VoiceBody(BaseModel):
     voice: str
 
 
+def wake_phrase(name: str, wake_word: str) -> str:
+    """How to address the assistant, for display: "Jarvis", "Hey ODS"."""
+    words = [name if w.lower() == name.lower() else w.capitalize() for w in wake_word.split()]
+    return " ".join(words) or name
+
+
 def assistant_hint(name: str, wake_word: str) -> str:
     """How Whisper should expect the assistant to be addressed: "Jarvis", or 'ODS ("Hey ODS")'."""
     if " ".join(wake_word.lower().split()) == name.lower():
@@ -141,6 +148,25 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
     agent = config.agent_profile  # the coding agent sessions run (Claude Code or OpenCode)
     wake_re = wake_pattern(config.wake_word)
     whisper_hint = assistant_hint(config.assistant_name, config.wake_word)
+    base_transcriber = transcriber  # what the hub started with (Whisper on a Mac, or none on a server)
+
+    def apply_live(clean: dict) -> None:
+        """Use changed settings at once: every request after this sees them (the handlers read these names)."""
+        nonlocal config, wake_re, whisper_hint, transcriber
+        config = live_settings.apply(config, clean)
+        wake_re = wake_pattern(config.wake_word)
+        whisper_hint = assistant_hint(config.assistant_name, config.wake_word)
+        shared_voice["name"] = config.tts_voice
+        if hasattr(interpreter, "configure"):
+            interpreter.configure(url=config.ollama_url, model=config.intent_model, api=config.llm_api,
+                                  key=config.llm_key or None, timeout=config.intent_timeout,
+                                  summary_timeout=config.summary_timeout, assistant=config.assistant_name)
+        if config.stt_url:
+            from .stt import OdsTranscriber
+            transcriber = OdsTranscriber(config.stt_url, config.stt_model)
+        else:
+            transcriber = base_transcriber
+        registry.version += 1  # push the new name and wake phrase to every page and widget
 
     def project_names() -> list[str]:
         """Local project folders plus projects the hub can clone from their git remote."""
@@ -221,6 +247,8 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
         names = registry.names()
         return {"type": "state", "iterm_connected": registry.iterm_ok, "is_local": local, "active": registry.active,
                 "tts_voice": shared_voice["name"],
+                "assistant_name": config.assistant_name,
+                "wake_phrase": wake_phrase(config.assistant_name, config.wake_word),
                 "source": config.source,
                 "servers": [{"name": config.hub_server, "online": True}]
                 + [{"name": v["name"], "online": v["online"]} for v in mac_servers()],
@@ -410,17 +438,51 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
         require(request)
         if not VOICE_NAME.match(body.voice):
             raise HTTPException(400, "Unknown voice")
-        shared_voice["name"] = body.voice
-        path = config.data_dir / "settings.json"
-        try:
-            settings = json.loads(path.read_text()) if path.exists() else {}
-        except ValueError:
-            settings = {}
-        settings["tts_voice"] = body.voice
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(settings, indent=2) + "\n")
-        registry.version += 1  # push the new voice to every connected page and widget
+        live_settings.save(config.data_dir, {"tts_voice": body.voice})
+        apply_live({"tts_voice": body.voice})
         return {"voice": body.voice}
+
+    # ---- settings (widget and web page): changes apply at once and are kept in settings.json ----
+    def settings_view() -> dict:
+        return {**live_settings.view(config), "wake_phrase": wake_phrase(config.assistant_name, config.wake_word)}
+
+    @app.get("/api/settings")
+    def get_settings(request: Request):
+        require(request)
+        return settings_view()
+
+    @app.post("/api/settings")
+    async def set_settings(request: Request):
+        require(request)
+        try:
+            changes = await request.json()
+        except ValueError:
+            raise HTTPException(400, "JSON body expected") from None
+        if not isinstance(changes, dict):
+            raise HTTPException(400, "JSON object expected")
+        clean, errors = live_settings.check(changes)
+        if errors:
+            raise HTTPException(400, {"errors": errors})  # all or nothing: never half-applied
+        live_settings.save(config.data_dir, clean)
+        apply_live(clean)
+        return settings_view()
+
+    @app.post("/api/settings/reload")
+    def reload_settings(request: Request):
+        """Read settings.json again (e.g. after editing it by hand). Deploy-time values need a restart."""
+        require(request)
+        fresh = load_config(config.data_dir)
+        clean = {k: getattr(fresh, "ollama_url" if k == "llm_url" else k) for k in live_settings.EDITABLE}
+        apply_live(clean)
+        restart = [k for k in live_settings.READ_ONLY if getattr(fresh, k) != getattr(config, k) and k != "source"]
+        return {**settings_view(), "restart_needed": restart}
+
+    @app.post("/api/settings/test-wake")
+    def test_wake(body: TextBody, request: Request):
+        """Does this phrase (e.g. what Whisper heard) start with the wake word?"""
+        require(request)
+        rest = strip_wake(body.text, wake_re)
+        return {"matches": rest is not None, "rest": rest or ""}
 
     # ---- projects ----
     @app.get("/api/projects")

@@ -880,3 +880,50 @@ def test_no_server_name_means_the_hub_whatever_it_is_called(env, tmp_path):
         assert client.post("/api/new_session", json=body).status_code == 200
     assert len(env["bridge"].created) == 3  # all started locally on the hub
     assert client.post("/api/new_session", json={"project": "Beacon", "where": "hub1"}).status_code == 409  # not special any more
+
+
+def settings_client(env, tmp_path):
+    config = Config(data_dir=tmp_path, projects_dir=tmp_path / "Projects", netbird_ip="192.0.2.20")
+    app = create_app(registry=env["registry"], bridge=env["bridge"], auth=env["auth"], transcriber=None, config=config)
+    return TestClient(app, base_url="https://testserver", client=LOCAL)
+
+
+def test_settings_change_applies_live_without_a_restart(env, tmp_path):
+    client = settings_client(env, tmp_path)
+    assert client.get("/api/settings").json()["values"]["wake_word"] == "jarvis"
+    r = client.post("/api/settings", json={"assistant_name": "Friday", "wake_word": "hey friday"})
+    assert r.status_code == 200 and r.json()["values"]["assistant_name"] == "Friday"
+    said = lambda text: client.post("/api/utterance", json={"text": text, "wake": "1"}).json()
+    assert said("Hey Friday, what's going on?")["heard"] is True
+    assert said("Jarvis, what's going on?")["heard"] is False  # the old wake word no longer works
+    state = client.get("/api/state").json()
+    assert (state["assistant_name"], state["wake_phrase"]) == ("Friday", "Hey Friday")
+    assert json.loads((tmp_path / "settings.json").read_text())["wake_word"] == "hey friday"  # kept after restarts
+
+
+def test_bad_settings_are_refused_whole_and_explained(env, tmp_path):
+    client = settings_client(env, tmp_path)
+    r = client.post("/api/settings", json={"wake_word": "hey friday", "tts_url": "http://8.8.8.8:8880", "port": 1})
+    assert r.status_code == 400
+    assert len(r.json()["detail"]["errors"]) == 2
+    assert client.get("/api/settings").json()["values"]["wake_word"] == "jarvis"  # nothing half-applied
+    assert not (tmp_path / "settings.json").exists()
+
+
+def test_reload_reads_settings_json_again(env, tmp_path):
+    client = settings_client(env, tmp_path)
+    (tmp_path / "settings.json").write_text(json.dumps({"assistant_name": "Nova", "wake_word": "nova", "port": 9999}))
+    body = client.post("/api/settings/reload").json()
+    assert body["values"]["assistant_name"] == "Nova"
+    assert body["restart_needed"] == ["port"]  # read-only values only change after a restart
+    assert client.post("/api/utterance", json={"text": "Nova, status", "wake": "1"}).json()["heard"] is True
+
+
+def test_wake_word_test_and_settings_need_pairing(env, tmp_path):
+    client = settings_client(env, tmp_path)
+    assert client.post("/api/settings/test-wake", json={"text": "Hey, Jarvis. Status"}).json() == {
+        "matches": True, "rest": "Status"}
+    assert client.post("/api/settings/test-wake", json={"text": "hello there"}).json()["matches"] is False
+    assert env["remote"].get("/api/settings").status_code == 401
+    assert env["remote"].post("/api/settings", json={"wake_word": "x"}).status_code == 401
+    assert env["remote"].post("/api/settings/reload").status_code == 401

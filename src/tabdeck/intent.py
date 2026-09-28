@@ -173,6 +173,15 @@ class Interpreter:
         # Summaries read a whole reply; nobody is waiting on them, so allow longer.
         self._summary_post = post or _http_post(self.endpoint, summary_timeout, key)
 
+    def configure(self, url: str, model: str, api: str, key: str | None, timeout: float, summary_timeout: float,
+                  assistant: str) -> None:
+        """Use new settings from the next request on (the settings screen changes them while running)."""
+        self.model, self.api, self.assistant = model, api, assistant
+        self.endpoint = url.rstrip("/") + ("/chat/completions" if api == "openai" else "/api/chat")
+        self._post = _http_post(self.endpoint, timeout, key)
+        self._warm_post = _http_post(self.endpoint, 180, key)
+        self._summary_post = _http_post(self.endpoint, summary_timeout, key)
+
     def _body(self, messages: list[dict]) -> dict:
         if self.api == "openai":
             return {"model": self.model, "stream": False, "temperature": 0,

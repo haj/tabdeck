@@ -212,3 +212,12 @@ def test_openai_mode_sends_the_key():
     finally:
         urllib.request.urlopen = orig
     assert captured["auth"] == "Bearer sk-test"
+
+
+def test_configure_switches_server_and_model_live():
+    it = Interpreter(url="http://localhost:11434", model="gemma4:latest")
+    it.configure(url="http://10.0.0.2:4000/v1", model="default", api="openai", key="k", timeout=20,
+                 summary_timeout=60, assistant="Friday")
+    assert (it.endpoint, it.model, it.api, it.assistant) == ("http://10.0.0.2:4000/v1/chat/completions", "default",
+                                                              "openai", "Friday")
+    assert "response_format" in it._body([])  # OpenAI-style requests from now on
