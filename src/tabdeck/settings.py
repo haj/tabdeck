@@ -32,6 +32,7 @@ EDITABLE = {
     "stt_url": ("Speech", "Speech-to-text URL (empty: Whisper on the Mac)"),
     "stt_model": ("Speech", "Speech-to-text model"),
     "tts_url": ("Speech", "Voice server URL (empty: system voice)"),
+    "projects_dir": ("Sessions", "Projects folder on the hub (new sessions start in its folders)"),
 }
 READ_ONLY = ("agent", "port", "tmux_session", "hub_server", "source")
 
@@ -101,6 +102,12 @@ def check(changes: dict) -> tuple[dict, list[str]]:
                 errors.append("API key: printable characters without spaces")
                 continue
             clean[key] = value
+        elif key == "projects_dir":
+            folder = Path(str(value or "")).expanduser()
+            if not folder.is_absolute() or not folder.is_dir():
+                errors.append(f"projects folder {value!r}: an existing folder on the hub, e.g. ~/Projects")
+                continue
+            clean[key] = str(folder)
         elif key in ("intent_timeout", "summary_timeout"):
             try:
                 seconds = float(value)
@@ -117,6 +124,7 @@ def view(config: Config) -> dict:
     """What the settings screens show: current values (the API key only as set/empty), labels, read-only values."""
     values = {k: getattr(config, "ollama_url" if k == "llm_url" else k) for k in EDITABLE}
     values["llm_key"] = "set" if config.llm_key else ""
+    values["projects_dir"] = str(config.projects_dir)
     return {"values": values, "fields": [{"key": k, "group": g, "label": lbl} for k, (g, lbl) in EDITABLE.items()],
             "read_only": {k: getattr(config, k) for k in READ_ONLY}}
 
@@ -132,5 +140,5 @@ def save(data_dir: Path, clean: dict) -> None:
 
 
 def apply(config: Config, clean: dict) -> Config:
-    fields = {("ollama_url" if k == "llm_url" else k): v for k, v in clean.items()}
+    fields = {("ollama_url" if k == "llm_url" else k): (Path(v) if k == "projects_dir" else v) for k, v in clean.items()}
     return replace(config, **fields)

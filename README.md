@@ -75,6 +75,7 @@ jobs, cron lines and tmux sessions.
 | `assistant_name` / `wake_word` | `Jarvis` / `jarvis` | e.g. `ODS` / `hey ods`, or any word |
 | `port` | `8765` | hub and Mac agent port |
 | `tmux_session` | `deck` | tmux session on servers |
+| `projects_dir` | `~/Projects` | the hub's projects folder: ＋ lists its folders, and *New project* creates one there |
 | `llm_api`, `llm_url`/`ollama_url`, `intent_model`, `llm_key` | Ollama on localhost | the assistant's model; `openai` for OpenAI-compatible servers (e.g. ODS LiteLLM) |
 | `stt_url` | (empty: Whisper on the Mac) | OpenAI-compatible speech-to-text, e.g. ODS Whisper |
 | `tts_url`, `tts_voice` | (empty: system voice) | OpenAI-compatible text-to-speech (Kokoro) |

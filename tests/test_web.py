@@ -999,3 +999,26 @@ def test_a_paired_phone_can_pair_more_devices_from_the_web_page(env, tmp_path):
     assert phone.post("/api/pair").status_code == 200
     assert phone.get("/api/state").json()["can_pair"] is True
     assert stranger.get("/api/state").status_code == 401
+
+
+def test_new_project_creates_its_folder_and_starts_there(env, tmp_path):
+    projects = tmp_path / "code"  # not ~/Projects: the folder is a setting
+    config = Config(data_dir=tmp_path, projects_dir=projects)
+    app = create_app(registry=env["registry"], bridge=env["bridge"], auth=env["auth"], transcriber=None, config=config)
+    client = TestClient(app, base_url="https://testserver", client=LOCAL)
+    r = client.post("/api/new_session", json={"project": "fresh-idea", "create": True})
+    assert r.status_code == 200 and (projects / "fresh-idea").is_dir()
+    assert env["bridge"].created[-1][0] == str(projects / "fresh-idea")
+    assert client.post("/api/new_session", json={"project": "../escape", "create": True}).status_code == 404
+    assert not (tmp_path / "escape").exists()
+    assert client.post("/api/new_session", json={"project": "nope"}).status_code == 404  # without create: must exist
+
+
+def test_projects_folder_is_a_live_setting(env, tmp_path):
+    client = settings_client(env, tmp_path)
+    (tmp_path / "work" / "api").mkdir(parents=True)
+    r = client.post("/api/settings", json={"projects_dir": str(tmp_path / "work")})
+    assert r.status_code == 200 and r.json()["values"]["projects_dir"] == str(tmp_path / "work")
+    assert client.get("/api/projects").json()["projects"] == ["api"]
+    bad = client.post("/api/settings", json={"projects_dir": str(tmp_path / "missing")})
+    assert bad.status_code == 400 and "folder" in bad.json()["detail"]["errors"][0]

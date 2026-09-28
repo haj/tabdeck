@@ -108,6 +108,8 @@ def load_config(data_dir: Path | None = None) -> Config:
              if isinstance(settings.get(k), str)}
     if isinstance(settings.get("llm_url"), str):
         extra["ollama_url"] = settings["llm_url"]  # ODS name for the same setting
+    if isinstance(settings.get("projects_dir"), str) and settings["projects_dir"].strip():
+        extra["projects_dir"] = Path(settings["projects_dir"]).expanduser()
     for flag in ("mac_tabs", "allow_public"):
         if isinstance(settings.get(flag), bool):
             extra[flag] = settings[flag]

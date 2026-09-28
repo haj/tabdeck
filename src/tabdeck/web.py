@@ -126,6 +126,7 @@ class ProjectBody(BaseModel):
     project: str
     task: str = ""
     where: str = ""  # "" (or the hub's own name): on the hub; "mac": in iTerm on the Mac; else a server name
+    create: bool = False  # a new project: make its folder in the projects folder first
 
 
 class UtteranceBody(BaseModel):
@@ -590,6 +591,8 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
             if body.task.strip():
                 background.add_task(send_when_ready, sid, body.task.strip())
             return {"id": sid}
+        if body.create and valid_name(body.project) and body.project not in project_names():
+            (config.projects_dir / body.project).mkdir(parents=True, exist_ok=True)  # valid_name: no ../ or /
         if not valid_name(body.project) or body.project not in project_names():
             raise HTTPException(404, "Unknown project")
         dest = config.projects_dir / body.project

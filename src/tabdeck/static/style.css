@@ -227,3 +227,8 @@ dialog form > .btn { margin: 4px 6px 0 0; }
 }
 .settings input:focus, .settings select:focus { border-color: var(--cyan); }
 .settings p.muted { margin: 4px 0; white-space: pre-line; font-size: 12px; }
+.newproj { margin: 0 0 12px; padding: 6px 12px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.newproj legend { padding: 0 6px; color: var(--cyan); font-size: 12px; }
+.newproj input { display: block; width: 100%; margin: 6px 0 8px; padding: 8px 10px; font: inherit; font-size: 16px;
+  color: var(--text); background: #151b25; border: 1px solid #334055; border-radius: 6px; outline: none; }
+.newproj input:focus { border-color: var(--cyan); }

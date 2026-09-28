@@ -377,6 +377,17 @@ function pausePending() {
   const bar = $('#pending-bar');
   bar.style.width = getComputedStyle(bar).width; bar.style.transition = 'none';
 }
+async function sendNow(sessionId, text) {
+  const s = byId(sessionId);
+  if (!s) return speak('That tab is gone.', true);
+  try {
+    await api(`/api/sessions/${sessionId}/send`, { method: 'POST', json: { text } });
+    toast(`Sent to ${s.name}.`);
+  } catch (e) {
+    toast(e.status === 404 ? 'That tab is gone. Nothing was sent.' : e.status === 409 ? e.message : 'Sending failed.');
+  }
+}
+
 async function commitPending() {
   if (!S.pending) return;
   const { sessionId } = S.pending;
@@ -411,15 +422,17 @@ function openUrl(id, index) {
   else speak(`Opening ${s.name}.`, true);
 }
 
-async function newSession(project, where = '', task = '', said = '') {
+async function newSession(project, where = '', task = '', said = '', create = false) {
   try {
-    const r = await api('/api/new_session', { method: 'POST', json: { project, where, task } });
+    const r = await api('/api/new_session', { method: 'POST', json: { project, where, task, create } });
     S.selectAfter = r.id;
     speak(said || `Starting a session in ${project}.`, true);
   } catch (e) { toast(e.message); }
 }
 
-async function handleAction(a) {
+async function handleAction(a, typed = false) {
+  // Typed text needs no countdown: it is exactly what you meant. The countdown is for speech, to catch mishearing.
+  if (typed && a.type === 'reply') return sendNow(a.session_id, a.text);
   switch (a.type) {
     case 'speak': case 'ask': speak(a.text, true); break;
     case 'select': select(a.session_id); speak(a.speak, true); break;
@@ -512,7 +525,7 @@ $('#typed').addEventListener('submit', async (e) => {
   try {
     const r = await api('/api/command', { method: 'POST', json: { text, selected: S.selected || '' } });
     setHeard(`“${r.text}”`);
-    await handleAction(r.action);
+    await handleAction(r.action, true);
   } catch (err) { toast(err.message); }
 });
 
@@ -540,7 +553,21 @@ $('#new').onclick = async () => {
   const form = document.createElement('form'); form.method = 'dialog';
   const list = mk('div', 'plist', '');
   projects.forEach((p) => list.append(mk('button', 'btn', p, (ev) => { ev.preventDefault(); sheet.close(); newSession(p); })));
-  form.append(mk('h2', '', 'New session'), list, mk('button', 'btn', 'Close'));
+  if (!projects.length) list.append(mk('p', 'muted note', 'no project folders yet: create one below'));
+  // A new project: its folder is created in the projects folder (Settings → Sessions), then the session starts.
+  const name = document.createElement('input');
+  name.placeholder = 'new-project-name'; name.autocomplete = 'off'; name.autocapitalize = 'off'; name.spellcheck = false;
+  const create = mk('button', 'btn primary', 'Create & start', (ev) => {
+    ev.preventDefault();
+    const project = name.value.trim();
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(project)) { toast('Use letters, digits, . _ - (no spaces or slashes).'); return; }
+    sheet.close();
+    newSession(project, '', '', `Creating ${project} and starting a session.`, true);
+  });
+  const box = document.createElement('fieldset');
+  box.className = 'newproj';
+  box.append(mk('legend', '', 'New project'), name, create);
+  form.append(mk('h2', '', 'New session'), list, box, mk('button', 'btn', 'Close'));
   sheet.append(form);
   sheet.showModal();
 };
