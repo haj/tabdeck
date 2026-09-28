@@ -31,9 +31,19 @@ final class WidgetPanel: NSPanel {
         }
     }
 
+    /// Room left for an auto-hiding Dock at the bottom: macOS counts that edge as free, but the Dock pops up over it.
+    static let dockMargin: CGFloat = 90
+
     /// Keep the whole widget inside the visible area of its screen: above the Dock, below the menu bar.
     func keepOnScreen() {
-        guard let area = (screen ?? NSScreen.main)?.visibleFrame.insetBy(dx: 8, dy: 8) else { return }
+        guard let s = screen ?? NSScreen.main else { return }
+        var visible = s.visibleFrame
+        let bottomGap = visible.minY - s.frame.minY
+        if bottomGap < Self.dockMargin {  // Dock auto-hidden (or not at the bottom): keep clear of where it appears
+            visible.origin.y = s.frame.minY + Self.dockMargin
+            visible.size.height -= Self.dockMargin - bottomGap
+        }
+        let area = visible.insetBy(dx: 8, dy: 8)
         var origin = frame.origin
         origin.x = min(max(origin.x, area.minX), max(area.minX, area.maxX - frame.width))
         origin.y = min(max(origin.y, area.minY), max(area.minY, area.maxY - frame.height))
