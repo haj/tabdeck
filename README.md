@@ -17,7 +17,7 @@ for the language model, Whisper and Kokoro.
 - a **private network** between them and your phone, such as NetBird, Tailscale or WireGuard.
 
 ```sh
-git clone https://github.com/OWNER/tabdeck.git && cd tabdeck
+git clone https://github.com/haj/tabdeck.git && cd tabdeck
 uv sync
 uv run tabdeck setup        # asks 3–4 questions, deploys the hub, installs the Mac agent and the widget
 ```
