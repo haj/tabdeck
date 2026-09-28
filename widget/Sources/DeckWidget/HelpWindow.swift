@@ -63,7 +63,7 @@ struct HelpView: View {
                 ])
 
                 section("When something is wrong", [
-                    "• **“Can't reach the hub” / grey dot:** check that the private network is connected, then menu → Reload config.",
+                    "• **Hollow ring / “can't reach the hub”:** check that the private network is connected, then menu → Reload config.",
                     "• **It doesn't react to you:** check microphone access, and use Settings → *Test the wake word* with what you say.",
                     "• **Old voice or old name:** menu → Reload config (after editing settings files by hand).",
                     "• Logs: `\(data)/widget.log` (this widget) and `\(data)/service.log` (the Mac agent).",
