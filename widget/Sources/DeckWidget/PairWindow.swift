@@ -47,8 +47,14 @@ struct PairView: View {
     }
 
     private func load() async {
-        do { url = try await model.client.pairingLink() }
-        catch { url = ""; message = "Couldn't get a pairing link: \(SettingsStore.describe(error))" }
+        do {
+            let link = try await model.client.pairingLink()
+            // Only an https link on the hub itself: never a file:// or an app link.
+            guard let u = URL(string: link), u.scheme == "https", u.host == model.client.hub.host, u.path == "/pair" else {
+                url = ""; message = "The hub returned an unexpected pairing link."; return
+            }
+            url = link
+        } catch { url = ""; message = "Couldn't get a pairing link: \(SettingsStore.describe(error))" }
     }
 }
 
