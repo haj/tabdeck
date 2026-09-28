@@ -1,67 +1,107 @@
 name: Release
-# Push a tag like v0.2.0: test, build the widget app, and publish a GitHub Release with it.
+# Push a tag like v0.2.0 (only repository admins can: see the "release tags" ruleset).
+# Three jobs, so the signing secrets exist in one small job only:
+#   test    no secrets: Python and widget tests
+#   sign    environment "release" (waits for the owner's approval; its secrets live there): build, sign, notarize
+#   publish no secrets: creates the GitHub Release from the signed zip
+# Every action is pinned to a commit; checkouts keep no Git token.
 on:
   push:
     tags: ["v*"]
 permissions:
-  contents: write
+  contents: read
 jobs:
-  release:
+  test:
     runs-on: macos-14
-    env:
-      MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
-      MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
       - run: brew install tmux
-      - run: uv sync
+      - run: uv sync --locked
       - run: uv run pytest
       - name: Test the widget
         run: swift test
         working-directory: widget
 
-      - name: Signing identity (Developer ID if configured, else ad-hoc)
-        run: |
-          if [ -n "$MACOS_CERT_P12" ]; then
-            KC="$RUNNER_TEMP/build.keychain"; KP="$(uuidgen)"
-            echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
-            security create-keychain -p "$KP" "$KC"
-            security set-keychain-settings -lut 3600 "$KC"
-            security unlock-keychain -p "$KP" "$KC"
-            security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
-            security set-key-partition-list -S apple-tool:,apple: -s -k "$KP" "$KC" >/dev/null
-            security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
-            ID=$(security find-identity -v -p codesigning "$KC" | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -1)
-            echo "DECK_SIGN_ID=$ID" >> "$GITHUB_ENV"
-          else
-            echo "DECK_SIGN_ID=-" >> "$GITHUB_ENV"
-          fi
+  sign:
+    needs: test
+    runs-on: macos-14
+    environment: release
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
-      - name: Build the widget app
+      - name: Signing identity (Developer ID if configured, else ad-hoc)
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          if [ -z "$MACOS_CERT_P12" ]; then echo "DECK_SIGN_ID=-" >> "$GITHUB_ENV"; exit 0; fi
+          KC="$RUNNER_TEMP/signing.keychain-db"; KP="$(uuidgen)"
+          printf '%s' "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KP" "$KC"
+          security set-keychain-settings -lut 1800 "$KC"
+          security unlock-keychain -p "$KP" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KP" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          ID=$(security find-identity -v -p codesigning "$KC" | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -1)
+          [ -n "$ID" ] || { echo "no Developer ID Application identity in MACOS_CERT_P12"; exit 1; }
+          echo "DECK_SIGN_ID=$ID" >> "$GITHUB_ENV"
+          echo "DECK_KEYCHAIN=$KC" >> "$GITHUB_ENV"
+
+      - name: Build and sign the widget app
         run: sh widget/bundle.sh "$PWD/dist"
 
-      - name: Notarize (if configured)
-        if: env.APPLE_ID != '' && env.MACOS_CERT_P12 != ''
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
-          ditto -c -k --keepParent dist/DeckWidget.app dist/notarize.zip
-          xcrun notarytool submit dist/notarize.zip --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+          case "$DECK_SIGN_ID" in "Developer ID"*) ;; *) echo "ad-hoc signed: not notarized"; exit 0 ;; esac
+          [ -n "$APPLE_ID" ] || { echo "APPLE_ID not set: signed but not notarized"; exit 0; }
+          ditto -c -k --keepParent dist/DeckWidget.app "$RUNNER_TEMP/notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_PASSWORD" --wait
           xcrun stapler staple dist/DeckWidget.app
-          rm dist/notarize.zip
 
       - name: Package
         run: |
           ditto -c -k --keepParent dist/DeckWidget.app dist/DeckWidget.zip
           (cd dist && shasum -a 256 DeckWidget.zip > DeckWidget.zip.sha256)
 
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: widget
+          path: |
+            dist/DeckWidget.zip
+            dist/DeckWidget.zip.sha256
+          retention-days: 3
+
+      - name: Remove the signing keychain
+        if: always()
+        run: |
+          [ -n "${DECK_KEYCHAIN:-}" ] && security delete-keychain "$DECK_KEYCHAIN" || true
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notarize.zip"
+
+  publish:
+    needs: sign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: widget
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           # GitHub attaches the full source (setup, scripts, widget) to every release; the app is the extra.
-          gh release create "$GITHUB_REF_NAME" dist/DeckWidget.zip dist/DeckWidget.zip.sha256 \
+          gh release create "$GITHUB_REF_NAME" DeckWidget.zip DeckWidget.zip.sha256 --repo "$GITHUB_REPOSITORY" \
             --title "TabDeck $GITHUB_REF_NAME" --generate-notes

@@ -90,9 +90,16 @@ tests"**, **"approve"** or **"catch me up"**. Everything also works from the web
 ## Development
 `make test` (pytest; the tmux script tests need tmux). The widget: `cd widget && swift build && swift test`.
 
-**Releases.** Pushing a tag such as `v0.2.0` runs `.github/workflows/release.yml`:
-- it tests everything, builds the widget app on macOS, and publishes a GitHub Release with `DeckWidget.zip` and
-  its SHA-256 (GitHub adds the source archive);
-- to sign and notarize the app, add these repository secrets: `MACOS_CERT_P12` (base64 Developer ID Application
-  certificate), `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID` and `APPLE_APP_PASSWORD`. Without them the app is
-  ad-hoc signed.
+**Releases.** Push a tag such as `v0.2.0`; only repository admins can, because of the "release tags" ruleset.
+`.github/workflows/release.yml` then runs three jobs:
+1. **test** (no secrets): runs every test.
+2. **sign** (environment `release`): waits for your approval under *Actions*, then builds the widget app, signs it
+   and notarizes it.
+3. **publish** (no secrets): creates the GitHub Release with `DeckWidget.zip` and its SHA-256.
+
+The signing secrets live only in the `release` environment (Settings → Environments → release):
+- `MACOS_CERT_P12` (base64 Developer ID Application certificate), `MACOS_CERT_PASSWORD`;
+- `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`.
+
+Without them the app is ad-hoc signed. Actions are pinned to commits, only GitHub's own actions and `setup-uv` may
+run, and workflow tokens are read-only by default.
