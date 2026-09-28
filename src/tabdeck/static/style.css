@@ -136,6 +136,11 @@ body.show-detail #back { display: grid; }
   font: 13px/1.55 var(--mono); color: var(--text); background: var(--term);
 }
 .reply.raw { white-space: pre; word-break: normal; font-size: 12px; line-height: 1.35; color: #d7dde8; }
+.reply b { color: #fff; }
+.reply .h { color: var(--cyan); font-weight: 700; }
+.reply code.inline { padding: 0 4px; color: var(--magenta); background: var(--panel); border-radius: 3px; }
+.reply .codeblock { display: block; margin: 6px 0; padding: 8px 10px; overflow-x: auto; white-space: pre; color: var(--green);
+  background: var(--panel); border-left: 2px solid var(--green); border-radius: 4px; }
 .reply::after { content: "▍"; color: var(--green); animation: blink 1.1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 

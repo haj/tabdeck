@@ -212,6 +212,14 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
             raise HTTPException(409, str(e)) from None
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
+    @app.middleware("http")
+    async def revalidate_static(request: Request, call_next):
+        """Browsers re-check the page's files on each load (a cheap 304 when unchanged), so a deploy shows at once."""
+        response = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
     def host_of(conn) -> str:
         return conn.client.host if conn.client else ""
 
@@ -408,7 +416,8 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
         text = await act(bridge.reply_text(sid)) if hasattr(bridge, "reply_text") else None
         if text is None:
             text = last_assistant_text(s.transcript_path) if s.transcript_path else ""
-        return {"chunks": chunk(clean_for_speech(text), 5) if text else []}
+        # "text" is shown as written (line breaks, lists, code); "chunks" are read aloud (no markdown).
+        return {"text": text or "", "chunks": chunk(clean_for_speech(text), 5) if text else []}
 
     @app.get("/api/sessions/{sid}/screen")
     def screen(sid: str, request: Request):

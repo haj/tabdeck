@@ -149,7 +149,7 @@ def test_new_session(env):
 
 def test_screen_and_reply(env):
     assert "line1" in env["local"].get("/api/sessions/A/screen").json()["text"]
-    assert env["local"].get("/api/sessions/A/reply").json() == {"chunks": []}
+    assert env["local"].get("/api/sessions/A/reply").json() == {"text": "", "chunks": []}
 
 
 def test_reply_is_read_in_five_sentence_chunks(env, tmp_path):
@@ -944,3 +944,20 @@ def test_voice_list_comes_from_the_hubs_voice_server(env, tmp_path):
 def test_voice_list_is_empty_without_a_voice_server(env, tmp_path):
     client = settings_client(env, tmp_path)
     assert client.get("/api/tts/voices").json() == {"voices": []}
+
+
+def test_reply_keeps_its_lines_for_display(env, tmp_path):
+    import json as _json
+    t = tmp_path / "t.jsonl"
+    reply = "Done. Changes:\n\n- **auth.py**: fixed the token check\n- tests: 327 passed\n\n```\nuv run pytest\n```"
+    t.write_text(_json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": reply}]}}) + "\n")
+    env["registry"].sessions["A"].transcript_path = str(t)
+    body = env["local"].get("/api/sessions/A/reply").json()
+    assert body["text"] == reply  # shown as written, line breaks and all
+    assert body["chunks"] and "**" not in " ".join(body["chunks"])  # read aloud without markdown
+
+
+def test_page_and_static_files_are_revalidated_after_a_deploy(env):
+    for path in ("/", "/static/style.css", "/static/app.js"):
+        r = env["local"].get(path)
+        assert r.status_code == 200 and r.headers["cache-control"] in ("no-cache", "no-store"), path  # new versions show at once

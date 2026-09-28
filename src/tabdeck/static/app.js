@@ -10,7 +10,7 @@ const S = {
   sessions: [], isLocal: false, iterm: true,
   selected: load('selected') || null, muted: load('muted') === '1',
   prev: {}, prevMessage: {}, readIdx: {}, chunks: {}, pending: null,
-  showRaw: false, rawText: '', rawTimer: null, selectAfter: null,
+  showRaw: false, rawText: '', rawTimer: null, selectAfter: null, replyText: {},
 };
 const byId = (id) => S.sessions.find((s) => s.id === id);
 
@@ -141,10 +141,15 @@ function describe(s) {
   return `${s.name} is ${STATUS_LABEL[s.status].toLowerCase()}.`;
 }
 
-async function loadChunks(id) {
-  if (!S.chunks[id]) S.chunks[id] = (await api(`/api/sessions/${id}/reply`)).chunks;
+async function loadReply(id) {
+  if (!S.chunks[id]) {
+    const r = await api(`/api/sessions/${id}/reply`);
+    S.chunks[id] = r.chunks;
+    S.replyText[id] = r.text || '';
+  }
   return S.chunks[id];
 }
+const loadChunks = loadReply;
 async function readChunk(id, i, prefix = '') {
   if (!byId(id)) return speak('That tab is gone.', true);
   if (i === 0) delete S.chunks[id];  // a cached reply can be from an earlier turn
@@ -282,12 +287,35 @@ function renderDetail() {
   if (!S.showRaw) fillReply(s.id);
 }
 
+/* A reply as written: line breaks kept, **bold**, `code`, ``` blocks and # headings styled.
+   Built from text nodes only (never innerHTML), so a reply can't inject markup. */
+function renderReply(text) {
+  const frag = document.createDocumentFragment();
+  const inline = (line, into) => {
+    line.split(/(\*\*[^*]+\*\*|`[^`]+`)/).forEach((part) => {
+      if (/^\*\*[^*]+\*\*$/.test(part)) into.append(mk('b', '', part.slice(2, -2)));
+      else if (/^`[^`]+`$/.test(part)) into.append(mk('code', 'inline', part.slice(1, -1)));
+      else if (part) into.append(document.createTextNode(part));
+    });
+  };
+  text.split(/```[^\n]*\n?/).forEach((block, i) => {
+    if (i % 2) { frag.append(mk('span', 'codeblock', block.replace(/\n$/, ''))); return; }
+    block.split('\n').forEach((line, j, lines) => {
+      const h = line.match(/^#{1,4}\s+(.*)/);
+      if (h) frag.append(mk('span', 'h', h[1]));
+      else inline(line, frag);
+      if (j < lines.length - 1) frag.append(document.createTextNode('\n'));
+    });
+  });
+  return frag;
+}
+
 async function fillReply(id) {
   let text;
-  try { text = (await loadChunks(id)).join(' ') || byId(id)?.message || 'No reply in this tab yet.'; }
+  try { await loadReply(id); text = S.replyText[id] || byId(id)?.message || 'No reply in this tab yet.'; }
   catch { text = 'Could not load the reply.'; }
   const pre = $('#detail .reply');
-  if (pre && S.selected === id && !S.showRaw) pre.textContent = text;
+  if (pre && S.selected === id && !S.showRaw) pre.replaceChildren(renderReply(text));
 }
 
 function setupRaw() {
