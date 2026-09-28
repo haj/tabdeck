@@ -245,6 +245,13 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
         if not (is_local_request(request) and same_origin(request)):
             raise HTTPException(403, "Only from this Mac")
 
+    def require_owner(request: Request) -> None:
+        """This machine, or your Mac agent (its token): who may pair and unpair devices."""
+        bearer = request.headers.get("authorization", "")
+        if agents is not None and bearer.startswith("Bearer ") and agents.verify(bearer[7:]):
+            return
+        require_local(request)
+
     def session(sid: str) -> SessionState:
         s = registry.sessions.get(sid)
         if s is None:
@@ -314,7 +321,7 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
 
     @app.post("/api/pair")
     def pair_new(request: Request):
-        require_local(request)
+        require_owner(request)
         if not config.netbird_ip:
             raise HTTPException(409, "NetBird IP not detected; is NetBird connected?")
         url = f"https://{config.netbird_ip}:{config.port}/pair?code={auth.new_pairing_code(clock())}"
@@ -323,7 +330,7 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
 
     @app.post("/api/revoke")
     def revoke(request: Request):
-        require_local(request)
+        require_owner(request)
         auth.revoke_all()
         return {"ok": True}
 

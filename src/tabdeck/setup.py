@@ -196,4 +196,8 @@ def setup(opts: dict, ask=input, run=subprocess.run, say=print) -> None:
         if opts.get("yes") or not read(f"{label}? [Y/n]: ").strip().lower().startswith("n"):
             if subprocess.run(cmd, env=env, cwd=REPO).returncode != 0:
                 raise SystemExit(f"{label.lower()} failed; fix the problem and run `tabdeck setup` again")
-    say(f"\nDone. Web page: https://{a.ip}:{a.port} (pair it from this Mac). Say \"{a.wake}, what's going on?\"")
+    # Pair this Mac's browser and show a QR code for the phone: no ssh to the hub needed.
+    if opts.get("yes") or not read("Pair this Mac's browser and show a QR code for your phone? [Y/n]: ").strip().lower().startswith("n"):
+        subprocess.run([TABDECK, "pair", "--open"], env=env, cwd=REPO)
+    say(f"\nDone. Web page: https://{a.ip}:{a.port} (pair more devices any time: tabdeck pair, or the widget menu). "
+        f"Say \"{a.wake}, what's going on?\"")

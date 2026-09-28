@@ -88,3 +88,11 @@ def test_the_hub_only_listens_on_private_addresses():
         assert private_address(ip), ip
     for ip in ("8.8.8.8", "1.1.1.1", "0.0.0.0", "", "not-an-ip"):
         assert not private_address(ip), ip
+
+
+def test_allow_public_is_an_explicit_setting(tmp_path):
+    import json
+    from tabdeck.config import load_config
+    assert load_config(tmp_path).allow_public is False
+    (tmp_path / "settings.json").write_text(json.dumps({"allow_public": True}))
+    assert load_config(tmp_path).allow_public is True

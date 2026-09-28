@@ -9,7 +9,8 @@ deploy it.
 WireGuard. **Do not expose the hub or the Mac agent to the internet.**
 - **Listening:** the hub listens on `127.0.0.1` and on the private-network IP you give it, never on `0.0.0.0`. It
   refuses a public address: if the configured IP is not private, VPN (100.64.0.0/10) or loopback, it logs why and
-  serves localhost only. `tabdeck setup` rejects a public hub IP too.
+  serves localhost only. `tabdeck setup` rejects a public hub IP too. If you really want it, set
+  `"allow_public": true` in the hub's `settings.json`; pairing is then all that protects it.
 - **Proxies:** don't put a reverse proxy or tunnel (nginx, Caddy, Cloudflare Tunnel, ngrok) in front of it. If you
   do anyway, requests carrying proxy headers (`X-Forwarded-For`, `Forwarded`, `X-Real-IP`, `CF-Connecting-IP`, …) are
   never trusted as local, so they must pair like any remote device.
@@ -17,7 +18,8 @@ WireGuard. **Do not expose the hub or the Mac agent to the internet.**
 **Who is trusted:**
 - **Anyone with a shell on the hub server or your Mac.** Requests from `localhost` are trusted on both, so
   protect those accounts as you would your ssh keys.
-- **Paired browsers and phones.** Pairing uses a one-time code (valid 10 minutes) shown on the Mac. It gives a cookie
+- **Paired browsers and phones.** Pairing uses a one-time code (valid 10 minutes) that only the hub machine itself
+  or your Mac agent (with its token) can create: `tabdeck pair` or the widget's *Pair a phone…*. It gives a cookie
   that does not expire, so a lost phone keeps access until you revoke it. Use **Unpair all phones** (pairing sheet on the Mac page),
   then pair again.
 - **The Mac agent.** It connects to the hub with a bearer token, stored hashed on the hub

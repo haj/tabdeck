@@ -22,8 +22,9 @@ uv sync
 uv run tabdeck setup        # asks 3–4 questions, deploys the hub, installs the Mac agent and the widget
 ```
 
-Then say **"Jarvis, what's going on?"**. On the phone, open the hub's address that `setup` prints, pair it from the
-Mac's web page, and add it to the Home Screen. Everything is configurable later from the widget (menu bar icon →
+Then say **"Jarvis, what's going on?"**. `setup` ends by pairing this Mac's browser and showing a QR code: scan it
+with your phone, then add the page to the Home Screen. To pair more devices later, run `tabdeck pair` or use the
+widget menu → **Pair a phone…**. Everything is configurable later from the widget (menu bar icon →
 right-click → **Settings…**), and **Help…** in the same menu explains the rest.
 
 **Prebuilt widget.** Each [release](../../releases) has `DeckWidget.zip`. Unzip it into `~/Applications`, then
@@ -81,7 +82,7 @@ Every answer is also a flag (`tabdeck setup --help`). For example, a second setu
 ```sh
 uv run tabdeck setup --instance ods --host me@ods-server --agent opencode --ods   # "Hey ODS", port 8766
 ```
-Pair your phone from the Mac's web page, then add it to the Home Screen.
+Pair phones and browsers with `tabdeck pair` (a QR code and link) or the widget menu → **Pair a phone…**.
 
 ## Using it
 Say **"Jarvis, what's going on?"**, **"Jarvis, start Claude on server in myproject"**, **"tell api to run the

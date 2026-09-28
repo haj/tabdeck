@@ -971,3 +971,18 @@ def test_requests_through_a_proxy_on_the_hub_are_never_trusted_as_local(env, hea
     assert env["local"].post("/api/pair", headers=h).status_code == 403
     assert env["local"].post("/hook", json={}, headers=h).status_code == 403
     assert env["local"].get("/api/state").status_code == 200  # a direct local request still works
+
+
+def test_the_mac_agent_can_create_pairing_codes_so_nobody_needs_ssh(env, tmp_path):
+    from tabdeck.agents import AgentTokens
+    tokens = AgentTokens(tmp_path / "agents.json")
+    token = tokens.issue("mac")
+    config = Config(data_dir=tmp_path, projects_dir=tmp_path / "Projects", netbird_ip="100.64.0.10")
+    app = create_app(registry=env["registry"], bridge=env["bridge"], auth=env["auth"], transcriber=None,
+                     config=config, agents=tokens)
+    remote = TestClient(app, base_url="https://testserver", client=REMOTE)
+    r = remote.post("/api/pair", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200 and r.json()["url"].startswith("https://100.64.0.10:8765/pair?code=")
+    assert remote.post("/api/pair").status_code == 403  # a stranger can't
+    assert remote.post("/api/pair", headers={"Authorization": "Bearer nope"}).status_code == 403
+    assert remote.post("/api/revoke", headers={"Authorization": f"Bearer {token}"}).status_code == 200

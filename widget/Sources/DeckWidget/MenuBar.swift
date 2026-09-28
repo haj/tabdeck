@@ -60,6 +60,7 @@ final class MenuBar: NSObject {
         add(menu, model.micPaused ? "Resume listening" : "Pause listening", #selector(togglePause))
         add(menu, panel.isVisible ? "Hide widget" : "Show widget", #selector(toggleWidget))
         add(menu, "Open TabDeck page", #selector(openPage))
+        add(menu, "Pair a phone…", #selector(openPair))
         menu.addItem(.separator())
         menu.addItem(submenu("Voice", options: model.voices, current: model.speaker.ttsVoice, action: #selector(pickVoice(_:))))
         menu.addItem(submenu("Answer length", options: ["short", "normal", "detailed"], current: model.answerLength,
@@ -103,6 +104,7 @@ final class MenuBar: NSObject {
     @objc private func openSettings() { model.openSettings() }
     @objc private func reloadConfig() { model.reloadConfig() }
     @objc private func openHelp() { model.openHelp() }
+    @objc private func openPair() { PairWindow.show(model: model) }
     @objc private func openMicSettings() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!)
     }

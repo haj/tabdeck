@@ -44,7 +44,8 @@ struct HelpView: View {
                     "• The dot shows the state: **grey** listening, **blue** hearing you or working on it, **green** speaking, **red** paused, **hollow ring** offline. Drag it by the dot.",
                     "• Click the widget to show or hide your sessions; click a session to jump to it in iTerm.",
                     "• **⌃** tucks the widget into the menu bar (like Siri). It keeps listening and speaking.",
-                    "• **Menu bar icon:** click to show or hide the widget; **right-click** (or ⌥-click) for the menu: pause listening, voice, answer length, **Settings…**, **Reload config**, Help.",
+                    "• **Menu bar icon:** click to show or hide the widget; **right-click** (or ⌥-click) for the menu: pause listening, voice, answer length, **Pair a phone…**, **Settings…**, **Reload config**, Help.",
+                    "• **Phone:** menu → Pair a phone… shows a QR code; scan it on your private network and add the page to the Home Screen.",
                 ])
 
                 section("Start and stop", [

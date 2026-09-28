@@ -44,6 +44,7 @@ class Config:
     stt_url: str = ""  # speech-to-text service (OpenAI-compatible, e.g. ODS Whisper); empty: Whisper on the Mac
     stt_model: str = "Systran/faster-whisper-base"
     mac_tabs: bool = True  # Mac agent: report the Mac's own iTerm tabs (off: only server tabs)
+    allow_public: bool = False  # hub: also listen on a public address (not recommended; see SECURITY.md)
 
     @property
     def agent_profile(self) -> AgentProfile:
@@ -107,8 +108,9 @@ def load_config(data_dir: Path | None = None) -> Config:
              if isinstance(settings.get(k), str)}
     if isinstance(settings.get("llm_url"), str):
         extra["ollama_url"] = settings["llm_url"]  # ODS name for the same setting
-    if isinstance(settings.get("mac_tabs"), bool):
-        extra["mac_tabs"] = settings["mac_tabs"]
+    for flag in ("mac_tabs", "allow_public"):
+        if isinstance(settings.get(flag), bool):
+            extra[flag] = settings[flag]
     extra.update({k: float(settings[k]) for k in ("intent_timeout", "summary_timeout")
                   if isinstance(settings.get(k), (int, float))})
     agent_profile(extra.get("agent", "claude"))  # fail early on an unknown agent

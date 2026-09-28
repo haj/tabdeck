@@ -150,9 +150,10 @@ async def run(config: Config) -> None:
                      agents=AgentTokens(config.data_dir / "agents.json"), remotes=getattr(bridge, "remotes", {}))
 
     sockets = [_bind("127.0.0.1", config.port)]
-    if config.netbird_ip and not private_address(config.netbird_ip):
+    if config.netbird_ip and not private_address(config.netbird_ip) and not config.allow_public:
         log.error("refusing to listen on %s: not a private or VPN address (TabDeck is not meant for the internet); "
-                  "serving localhost only", config.netbird_ip)
+                  "serving localhost only. To listen there anyway, set \"allow_public\": true in %s/settings.json",
+                  config.netbird_ip, config.data_dir)
     elif config.netbird_ip:
         try:
             sockets.append(_bind(config.netbird_ip, config.port))
@@ -257,6 +258,8 @@ def cli() -> None:
     mv.add_argument("project", help="folder name in ~/Projects, e.g. myproject")
     mv.add_argument("server", help="a server name from <data dir>/servers.json")
     mv.add_argument("--session", help="conversation id (default: the project's most recent one)")
+    pr = sub.add_parser("pair", help="show a pairing QR code and link for a phone or browser")
+    pr.add_argument("--open", action="store_true", help="also open it here, pairing this Mac's browser")
     st = sub.add_parser("setup", help="set up a hub, this Mac and the widget (asks; flags skip questions)")
     st.add_argument("--instance", help="name of a second setup next to the first, e.g. ods")
     st.add_argument("--host", help="ssh target of the hub server")
@@ -283,6 +286,9 @@ def cli() -> None:
     elif args.cmd == "install-agent":
         from .install import install_agent
         install_agent(load_config())
+    elif args.cmd == "pair":
+        from .pair import pair
+        pair(load_config(), open_here=args.open)
     elif args.cmd == "setup":
         from .setup import setup
         setup({k: v for k, v in vars(args).items() if k != "cmd"})

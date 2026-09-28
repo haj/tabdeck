@@ -161,6 +161,17 @@ final class ServiceClient {
         return (r["matches"] as? Bool ?? false, r["rest"] as? String ?? "")
     }
 
+    /// A one-time pairing link for a phone or browser (the hub accepts this Mac agent's token for it).
+    func pairingLink() async throws -> String {
+        let r = try json(await request("api/pair", method: "POST"))
+        guard let url = r["url"] as? String else { throw ServiceError.http(0, "no link") }
+        return url
+    }
+
+    func unpairAll() async throws {
+        _ = try await request("api/revoke", method: "POST")
+    }
+
     /// English voices of the hub's voice server.
     func voices() async -> [String] {
         guard let data = try? await request("api/tts/voices"), let r = try? json(data) else { return [] }
