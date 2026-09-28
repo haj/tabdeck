@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.superpowers/
+widget/.build/
+deploy.env
+deploy*.env
+!deploy.env.example
+.remember/

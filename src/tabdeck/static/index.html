@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TabDeck">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="icon" href="/static/icon.svg">
+<link rel="stylesheet" href="/static/style.css">
+<title>TabDeck ODS</title>
+</head>
+<body>
+<header class="top">
+  <button id="back" class="icon-btn" aria-label="Back to list">‹</button>
+  <h1>TabDeck</h1>
+  <span id="conn" class="conn" role="status" aria-label="Connection"></span>
+  <button id="new" class="icon-btn" aria-label="New OpenCode session">＋</button>
+  <button id="mute" class="icon-btn" aria-label="Toggle voice output">🔊</button>
+  <button id="pair" class="icon-btn" hidden aria-label="Pair phone">▣</button>
+</header>
+<div id="banner" class="banner" hidden></div>
+<main class="layout">
+  <section id="list" class="list" aria-label="Tabs"></section>
+  <section id="detail" class="detail" aria-live="polite"></section>
+</main>
+<div id="pending" class="pending" hidden>
+  <label for="pending-text">Sending to <b id="pending-name"></b></label>
+  <textarea id="pending-text" rows="2"></textarea>
+  <div class="row"><button id="pending-cancel" class="btn">Cancel</button><button id="pending-send" class="btn primary">Send now</button></div>
+  <div class="countdown"><i id="pending-bar"></i></div>
+</div>
+<footer class="talkbar">
+  <p id="heard" class="heard"></p>
+  <div class="row">
+    <form id="typed" class="typed"><input id="typed-input" placeholder="Type a command or reply" autocomplete="off" enterkeyhint="send"><button class="btn">Go</button></form>
+    <button id="talk" class="talk" aria-label="Hold to talk">🎤</button>
+  </div>
+</footer>
+<dialog id="sheet"></dialog>
+<script src="/static/app.js"></script>
+</body>
+</html>

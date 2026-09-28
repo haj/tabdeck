@@ -1,0 +1,34 @@
+[project]
+name = "tabdeck"
+version = "0.1.0"
+license = "Apache-2.0"
+description = "Voice-first control of always-on coding-agent sessions (Claude Code, OpenCode) from phone, web and Mac"
+requires-python = ">=3.12"
+dependencies = [
+  "iterm2>=2.24; sys_platform == 'darwin'",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "python-multipart>=0.0.9",
+  "qrcode>=7.4",
+  "httpx>=0.27",
+  "mlx-whisper>=0.4; sys_platform == 'darwin'",
+]
+
+[project.scripts]
+tabdeck = "tabdeck.main:cli"
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "httpx>=0.27"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tabdeck"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = ["iterm: needs a running iTerm2", "slow: loads the Whisper model"]
+addopts = "-m 'not iterm and not slow'"
