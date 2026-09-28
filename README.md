@@ -8,6 +8,28 @@ replies aloud, and approves, replies to or starts sessions.
 TabDeck can use your own model and speech services, for example an [ODS](https://github.com/Osmantic/ODS) server
 for the language model, Whisper and Kokoro.
 
+## Quickstart
+**You need:**
+- a **Mac** with macOS 14+, iTerm2 (Settings → General → Magic → *Enable Python API*), Xcode Command Line Tools
+  (`xcode-select --install`) and [uv](https://docs.astral.sh/uv/);
+- a **Linux server** for the hub, with ssh from the Mac by key, `tmux`, and Claude Code or OpenCode installed and
+  logged in;
+- a **private network** between them and your phone, such as NetBird, Tailscale or WireGuard.
+
+```sh
+git clone https://github.com/OWNER/tabdeck.git && cd tabdeck
+uv sync
+uv run tabdeck setup        # asks 3–4 questions, deploys the hub, installs the Mac agent and the widget
+```
+
+Then say **"Jarvis, what's going on?"**. On the phone, open the hub's address that `setup` prints, pair it from the
+Mac's web page, and add it to the Home Screen. Everything is configurable later from the widget (menu bar icon →
+right-click → **Settings…**), and **Help…** in the same menu explains the rest.
+
+**Prebuilt widget.** Each [release](../../releases) has `DeckWidget.zip`. Unzip it into `~/Applications`, then
+right-click → *Open* the first time, because it is not notarized. `tabdeck setup` builds the widget from source
+anyway.
+
 ## Pieces
 - **Hub** (`tabdeck serve`, Linux server, systemd user service). Serves the web page and API. Each agent session
   is a window of one tmux session (default `deck`); the tmux server has its own service, so deploys never end
@@ -66,4 +88,11 @@ Say **"Jarvis, what's going on?"**, **"Jarvis, start Claude on server in myproje
 tests"**, **"approve"** or **"catch me up"**. Everything also works from the web page. See `docs/server-sessions.md`.
 
 ## Development
-`make test` (pytest; the tmux script tests need tmux). The widget: `cd widget && swift build`.
+`make test` (pytest; the tmux script tests need tmux). The widget: `cd widget && swift build && swift test`.
+
+**Releases.** Pushing a tag such as `v0.2.0` runs `.github/workflows/release.yml`:
+- it tests everything, builds the widget app on macOS, and publishes a GitHub Release with `DeckWidget.zip` and
+  its SHA-256 (GitHub adds the source archive);
+- to sign and notarize the app, add these repository secrets: `MACOS_CERT_P12` (base64 Developer ID Application
+  certificate), `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID` and `APPLE_APP_PASSWORD`. Without them the app is
+  ad-hoc signed.

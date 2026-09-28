@@ -37,6 +37,10 @@ plutil -replace NSMicrophoneUsageDescription -string "$ASSISTANT listens for '$P
 # Sign with a stable identity when one exists: macOS ties the microphone permission to the
 # signature, and an ad-hoc signature changes on every build (the app then silently gets no audio).
 IDENTITY="${DECK_SIGN_ID:-$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Apple Development:[^"]*\)".*/\1/p' | head -1)}"
-codesign --force --sign "${IDENTITY:--}" "$APP"
+case "$IDENTITY" in
+  "Developer ID"*)  # distribution: hardened runtime + timestamp, so the app can be notarized
+    codesign --force --options runtime --timestamp --entitlements DeckWidget.entitlements --sign "$IDENTITY" "$APP" ;;
+  *) codesign --force --sign "${IDENTITY:--}" "$APP" ;;
+esac
 echo "signed with: ${IDENTITY:-ad-hoc}"
 echo "$APP ($ASSISTANT, \"$PHRASE\", port $PORT, ~/$DATA)"
