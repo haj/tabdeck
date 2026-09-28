@@ -36,7 +36,7 @@ EDITABLE = {
 READ_ONLY = ("agent", "port", "tmux_session", "hub_server", "source")
 
 
-def _url(value: str, what: str, required: bool) -> tuple[str | None, str | None]:
+def check_url(value: str, what: str, required: bool) -> tuple[str | None, str | None]:
     v = value.strip().rstrip("/")
     if not v:
         return (None, f"{what}: a URL is needed") if required else ("", None)
@@ -81,7 +81,7 @@ def check(changes: dict) -> tuple[dict, list[str]]:
             clean[key] = value
         elif key in ("tts_url", "stt_url", "llm_url"):
             what = {"tts_url": "voice server", "stt_url": "speech-to-text server", "llm_url": "model server"}[key]
-            v, err = _url(str(value or ""), what, required=key == "llm_url")
+            v, err = check_url(str(value or ""), what, required=key == "llm_url")
             if err:
                 errors.append(err)
                 continue

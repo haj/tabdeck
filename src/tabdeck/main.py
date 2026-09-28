@@ -192,7 +192,8 @@ async def run_agent(config: Config) -> None:
 
     transcriber = make_transcriber(config)
     from .web import assistant_hint
-    app = create_agent_app(agent, transcriber, utterance, assistant_hint(config.assistant_name, config.wake_word))
+    app = create_agent_app(agent, transcriber, utterance, assistant_hint(config.assistant_name, config.wake_word),
+                           config=config)
     server = uvicorn.Server(uvicorn.Config(app, ssl_certfile=str(config.cert_file),
                                            ssl_keyfile=str(config.key_file), log_level="warning"))
     forwarders = Forwarders(config.netbird_ip) if config.netbird_ip else None
