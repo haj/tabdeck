@@ -188,7 +188,8 @@ tests"**, **"approve"** or **"catch me up"**. Everything also works from the web
 
 The signing secrets live only in the `release` environment (Settings → Environments → release):
 - `MACOS_CERT_P12` (base64 Developer ID Application certificate), `MACOS_CERT_PASSWORD`;
-- `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`.
+- for notarization, either an App Store Connect API key: `APPLE_API_KEY_P8` (base64 `.p8`), `APPLE_API_KEY_ID`,
+  `APPLE_API_ISSUER`; or an Apple ID: `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`.
 
 Without them the app is ad-hoc signed. Actions are pinned to commits, only GitHub's own actions and `setup-uv` may
 run, and workflow tokens are read-only by default.

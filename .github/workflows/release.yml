@@ -58,16 +58,27 @@ jobs:
         run: sh widget/bundle.sh "$PWD/dist"
 
       - name: Notarize
+        # With an App Store Connect API key (APPLE_API_KEY_P8, base64 .p8), or an Apple ID and app-specific password.
         env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
           case "$DECK_SIGN_ID" in "Developer ID"*) ;; *) echo "ad-hoc signed: not notarized"; exit 0 ;; esac
-          [ -n "$APPLE_ID" ] || { echo "APPLE_ID not set: signed but not notarized"; exit 0; }
+          if [ -n "$APPLE_API_KEY_P8" ]; then
+            printf '%s' "$APPLE_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/api_key.p8"
+            set -- --key "$RUNNER_TEMP/api_key.p8" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER"
+          elif [ -n "$APPLE_ID" ]; then
+            set -- --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+          else
+            echo "no notarization credentials: signed but not notarized"; exit 0
+          fi
           ditto -c -k --keepParent dist/DeckWidget.app "$RUNNER_TEMP/notarize.zip"
-          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
-            --password "$APPLE_APP_PASSWORD" --wait
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" "$@" --wait
+          rm -f "$RUNNER_TEMP/api_key.p8"
           xcrun stapler staple dist/DeckWidget.app
 
       - name: Package
@@ -87,7 +98,7 @@ jobs:
         if: always()
         run: |
           [ -n "${DECK_KEYCHAIN:-}" ] && security delete-keychain "$DECK_KEYCHAIN" || true
-          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notarize.zip"
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notarize.zip" "$RUNNER_TEMP/api_key.p8"
 
   publish:
     needs: sign
