@@ -18,6 +18,12 @@ halves.
   <img alt="TabDeck architecture: on your Mac, the widget and the Mac agent talk to the hub on an always-on server, which runs the agent sessions in tmux; iTerm2 shows those sessions as tabs; a paired phone uses the hub's web app; the hub can use an optional language model, speech-to-text and voice, all three from one ODS server if you like." src="docs/architecture.png">
 </picture>
 
+**On your phone or in a browser** (the paired web app; the same sessions, from anywhere on your private network):
+
+| Sessions at a glance | Approve, deny or reply | Start a session | Settings, live |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/sessions.png" width="200" alt="The session list: each session with its server, status and last message"> | <img src="docs/screenshots/session.png" width="200" alt="A session waiting for approval, with Approve, Deny and Read aloud, and its terminal screen"> | <img src="docs/screenshots/new-session.png" width="200" alt="The new-session sheet: pick a project, create one, or open any folder"> | <img src="docs/screenshots/settings.png" width="200" alt="The settings sheet: assistant name, wake word, voice and model"> |
+
 | Where | What runs there | Installed by |
 |---|---|---|
 | **Mac** | the widget, the Mac agent, iTerm2, Whisper (on Apple silicon, unless you use a speech server) | `tabdeck setup` (you install iTerm2, Xcode tools, uv, mkcert) |
