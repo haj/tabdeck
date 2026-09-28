@@ -75,6 +75,14 @@ MAX_TTS = 1000
 VOICE_NAME = re.compile(r"^[a-z]{2}_[a-z0-9_]{1,30}$")
 
 
+async def _kokoro_voices(url: str) -> list[str]:
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(url.rstrip("/") + "/v1/audio/voices")
+        r.raise_for_status()
+        voices = r.json().get("voices", [])
+        return [v if isinstance(v, str) else str(v.get("id", "")) for v in voices]
+
+
 async def _kokoro(url: str, text: str, voice: str) -> bytes:
     async with httpx.AsyncClient(timeout=15) as client:
         r = await client.post(url.rstrip("/") + "/v1/audio/speech",
@@ -139,10 +147,11 @@ class CommandBody(BaseModel):
 def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: Config,
                clock: Callable[[], float] = time.time, interpreter=None,
                ready_timeout: float = 30.0, ready_settle: float = 1.0, git_clone=None,
-               agents=None, remotes=None, tts_fetch=None) -> FastAPI:
+               agents=None, remotes=None, tts_fetch=None, tts_voices=None) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     git_clone = git_clone or clone
     tts_fetch = tts_fetch or _kokoro
+    tts_voices = tts_voices or _kokoro_voices
     shared_voice = {"name": config.tts_voice}  # shared voice; changed from the widget's Voice menu
     remotes = remotes or {}
     agent = config.agent_profile  # the coding agent sessions run (Claude Code or OpenCode)
@@ -432,6 +441,19 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
         except Exception as e:  # noqa: BLE001 - voice server down: clients fall back to their own voice
             raise HTTPException(502, f"Voice unavailable: {e}") from e
         return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
+
+    @app.get("/api/tts/voices")
+    async def list_voices(request: Request):
+        """English voices of the hub's voice server, for the widget's and page's voice pickers."""
+        require(request)
+        if not config.tts_url:
+            return {"voices": []}
+        try:
+            ids = await tts_voices(config.tts_url)
+        except Exception as e:  # noqa: BLE001 - voice server down: an empty list, the picker says so
+            log.info("voice list unavailable: %s", e)
+            return {"voices": []}
+        return {"voices": sorted(v for v in ids if v[:3] in ("af_", "am_", "bf_", "bm_") and "_v0" not in v)}
 
     @app.post("/api/voice-setting")
     def voice_setting(body: VoiceBody, request: Request):

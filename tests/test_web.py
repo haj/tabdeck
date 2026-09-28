@@ -927,3 +927,20 @@ def test_wake_word_test_and_settings_need_pairing(env, tmp_path):
     assert env["remote"].get("/api/settings").status_code == 401
     assert env["remote"].post("/api/settings", json={"wake_word": "x"}).status_code == 401
     assert env["remote"].post("/api/settings/reload").status_code == 401
+
+
+def test_voice_list_comes_from_the_hubs_voice_server(env, tmp_path):
+    async def voices(url):
+        assert url == "http://100.64.0.5:8880"
+        return ["af_heart", "am_michael", "bf_emma", "zf_xiaobei", "af_heart_v0"]
+    config = Config(data_dir=tmp_path, projects_dir=tmp_path / "Projects", tts_url="http://100.64.0.5:8880")
+    app = create_app(registry=env["registry"], bridge=env["bridge"], auth=env["auth"], transcriber=None, config=config,
+                     tts_voices=voices)
+    client = TestClient(app, base_url="https://testserver", client=LOCAL)
+    assert client.get("/api/tts/voices").json() == {"voices": ["af_heart", "am_michael", "bf_emma"]}  # English only
+    assert env["remote"].get("/api/tts/voices").status_code == 401
+
+
+def test_voice_list_is_empty_without_a_voice_server(env, tmp_path):
+    client = settings_client(env, tmp_path)
+    assert client.get("/api/tts/voices").json() == {"voices": []}
