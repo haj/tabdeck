@@ -26,9 +26,9 @@ struct LightView: View {
     var body: some View {
         switch light {
         case .offline:
-            Circle().stroke(Color.gray, lineWidth: 2).frame(width: 14, height: 14)
+            Circle().stroke(Color.gray, lineWidth: 2).frame(width: 12, height: 12)
         default:
-            Circle().fill(color).frame(width: 14, height: 14)
+            Circle().fill(color).frame(width: 12, height: 12)
                 .shadow(color: color.opacity(0.7), radius: light == .listening ? 0 : 5)
         }
     }
@@ -52,31 +52,31 @@ struct WidgetView: View {
             if let p = model.pending { pendingView(p) }
             if model.expanded { tabList }
         }
-        .padding(10)
-        .frame(width: 300)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.primary.opacity(0.1)))
+        .padding(8)
+        .frame(width: 256)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 15))
+        .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color.primary.opacity(0.1)))
     }
 
     private var pill: some View {
         HStack(spacing: 10) {
             ZStack {
-                DragHandle().frame(width: 26, height: 36)
+                DragHandle().frame(width: 22, height: 30)
                 LightView(light: model.light).allowsHitTesting(false)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 13, weight: .semibold))
-                Text(model.line).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                Text(title).font(.system(size: 12, weight: .semibold))
+                Text(model.line).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 0)
             if model.needsYou > 0 {
                 Text("\(model.needsYou)")
-                    .font(.system(size: 12, weight: .bold)).foregroundStyle(.black)
-                    .padding(.horizontal, 7).padding(.vertical, 2)
+                    .font(.system(size: 11, weight: .bold)).foregroundStyle(.black)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
                     .background(Color.orange, in: Capsule())
             }
             Button { model.setWidgetHidden(true) } label: {
-                Image(systemName: "chevron.up.circle.fill").font(.system(size: 16)).foregroundStyle(.secondary)
+                Image(systemName: "chevron.up.circle.fill").font(.system(size: 14)).foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
             .help("Hide in the menu bar (click the menu bar icon to bring it back)")
@@ -132,6 +132,6 @@ struct WidgetView: View {
                 }
             }
         }
-        .frame(maxHeight: 320)
+        .frame(maxHeight: 280)
     }
 }

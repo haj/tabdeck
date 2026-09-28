@@ -4,7 +4,7 @@ import SwiftUI
 /// Borderless, non-activating panel that floats above all apps on every Space.
 final class WidgetPanel: NSPanel {
     init(root: AnyView) {
-        super.init(contentRect: NSRect(x: 0, y: 0, width: 320, height: 76),
+        super.init(contentRect: NSRect(x: 0, y: 0, width: 272, height: 64),
                    styleMask: [.nonactivatingPanel, .borderless], backing: .buffered, defer: false)
         isFloatingPanel = true
         level = .floating
@@ -17,7 +17,7 @@ final class WidgetPanel: NSPanel {
         host.sizingOptions = .preferredContentSize
         contentViewController = host
         if !setFrameUsingName("DeckWidgetPanel"), let screen = NSScreen.main?.visibleFrame {
-            setFrameOrigin(NSPoint(x: screen.maxX - 340, y: screen.minY + 20))
+            setFrameOrigin(NSPoint(x: screen.maxX - 290, y: screen.minY + 20))
         }
         setFrameAutosaveName("DeckWidgetPanel")
         keepOnScreen()  // a saved position can be behind the Dock or on a display that is gone

@@ -148,6 +148,10 @@ final class AppModel: ObservableObject {
         SettingsWindow.show(model: self)
     }
 
+    func openHelp() {
+        HelpWindow.show(model: self)
+    }
+
     func start() {
         loadMacSettings()
         let client = self.client
