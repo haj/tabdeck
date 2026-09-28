@@ -243,14 +243,14 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
 
     def require_local(request: Request) -> None:
         if not (is_local_request(request) and same_origin(request)):
-            raise HTTPException(403, "Only from this Mac")
+            raise HTTPException(403, "Only from this machine")
 
     def require_owner(request: Request) -> None:
-        """This machine, or your Mac agent (its token): who may pair and unpair devices."""
-        bearer = request.headers.get("authorization", "")
-        if agents is not None and bearer.startswith("Bearer ") and agents.verify(bearer[7:]):
-            return
-        require_local(request)
+        """Who may pair and unpair devices: this machine, your Mac agent, or an already paired device (it can
+        type into your terminals anyway, so adding a device gives it nothing new; Unpair all removes every one)."""
+        if not authed(request):
+            raise HTTPException(403, "Pair this device first: on your Mac run `tabdeck pair`, "
+                                     "or use the widget menu → Pair a phone…")
 
     def session(sid: str) -> SessionState:
         s = registry.sessions.get(sid)
@@ -269,7 +269,8 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
 
     def state_json(local: bool) -> dict:
         names = registry.names()
-        return {"type": "state", "iterm_connected": registry.iterm_ok, "is_local": local, "active": registry.active,
+        return {"type": "state", "iterm_connected": registry.iterm_ok, "is_local": local, "can_pair": True,
+                "active": registry.active,
                 "tts_voice": shared_voice["name"],
                 "assistant_name": config.assistant_name,
                 "wake_phrase": wake_phrase(config.assistant_name, config.wake_word),

@@ -986,3 +986,16 @@ def test_the_mac_agent_can_create_pairing_codes_so_nobody_needs_ssh(env, tmp_pat
     assert remote.post("/api/pair").status_code == 403  # a stranger can't
     assert remote.post("/api/pair", headers={"Authorization": "Bearer nope"}).status_code == 403
     assert remote.post("/api/revoke", headers={"Authorization": f"Bearer {token}"}).status_code == 200
+
+
+def test_a_paired_phone_can_pair_more_devices_from_the_web_page(env, tmp_path):
+    config = Config(data_dir=tmp_path, projects_dir=tmp_path / "Projects", netbird_ip="100.64.0.10")
+    app = create_app(registry=env["registry"], bridge=env["bridge"], auth=env["auth"], transcriber=None, config=config)
+    stranger = TestClient(app, base_url="https://testserver", client=REMOTE)
+    r = stranger.post("/api/pair")
+    assert r.status_code == 403 and "pair" in r.json()["detail"].lower()  # says what to do, not "this Mac"
+    phone = TestClient(app, base_url="https://testserver", client=REMOTE)
+    phone.cookies.set(COOKIE, env["auth"].redeem(env["auth"].new_pairing_code(100.0), 100.0))
+    assert phone.post("/api/pair").status_code == 200
+    assert phone.get("/api/state").json()["can_pair"] is True
+    assert stranger.get("/api/state").status_code == 401

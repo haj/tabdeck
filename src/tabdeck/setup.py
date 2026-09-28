@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ from .servers import SSH_TARGET
 
 REPO = Path(__file__).resolve().parents[2]
 TABDECK = str(Path(sys.executable).parent / "tabdeck")  # this environment's `tabdeck` command
+shutil_which = shutil.which  # replaced in tests
 WAKE = re.compile(r"^[A-Za-z][A-Za-z .'-]{0,30}$")
 SESSION = re.compile(r"^[A-Za-z0-9_-]{1,30}$")
 FQDN = re.compile(r"^[A-Za-z0-9.-]{1,253}$")
@@ -138,6 +140,35 @@ def _reader(ask):
     return read
 
 
+def preflight(host: str, agent: str, run=subprocess.run, which=shutil.which) -> list[tuple[bool, str, str]]:
+    """What TabDeck needs, as (ok, item, how to fix): on this Mac and on the hub server (over ssh)."""
+    def ok(args) -> bool:
+        return run(args, capture_output=True, text=True, stdin=subprocess.DEVNULL).returncode == 0
+    api = run(["defaults", "read", "com.googlecode.iterm2", "EnableAPIServer"], capture_output=True, text=True,
+              stdin=subprocess.DEVNULL)
+    checks = [
+        (api.returncode == 0 and api.stdout.strip() == "1", "iTerm2 Python API",
+         "iTerm2 → Settings → General → Magic → Enable Python API (the Mac agent reads tabs and opens tmux tabs with it)"),
+        (ok(["xcode-select", "-p"]), "Xcode Command Line Tools", "xcode-select --install (to build the widget)"),
+        (bool(which("mkcert")), "mkcert", "brew install mkcert (HTTPS certificates for the hub and this Mac)"),
+    ]
+    probe = (f"PATH=$HOME/.local/bin:$PATH; command -v tmux >/dev/null && echo tmux; "
+             f"command -v crontab >/dev/null && echo cron; command -v {shlex.quote(agent)} >/dev/null && echo agent; "
+             f"loginctl show-user \"$USER\" -p Linger 2>/dev/null")
+    out = run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", host, probe], capture_output=True, text=True,
+              stdin=subprocess.DEVNULL).stdout.split()
+    install = {"claude": "curl -fsSL https://claude.ai/install.sh | bash, then run claude once to log in",
+               "opencode": "install OpenCode (it ships with ODS, or see opencode.ai), then log in once"}[agent]
+    checks += [
+        ("tmux" in out, "tmux on the hub", "sudo apt install tmux (3.2 or newer)"),
+        ("agent" in out, f"{agent} on the hub", install),
+        ("Linger=yes" in out, "systemd lingering on the hub",
+         "sudo loginctl enable-linger $USER (keeps the hub and sessions running when you're logged out, and at boot)"),
+        ("cron" in out, "cron on the hub", "sudo apt install cron (saves sessions every minute for after a reboot)"),
+    ]
+    return checks
+
+
 def run_setup(opts: dict, ask=input, run=subprocess.run, say=print) -> Answers:
     """Fill the answers from flags, detection and questions (Enter keeps the suggestion)."""
     read = _reader(ask)
@@ -158,6 +189,14 @@ def run_setup(opts: dict, ask=input, run=subprocess.run, say=print) -> Answers:
     ip = opts.get("ip") or q("Hub private-network IP (NetBird/Tailscale/WireGuard)", found.get("ip", ""))
     ods = opts["ods"] if opts.get("ods") is not None else (found["ods"] and yes("ODS found on the hub: use its model, Whisper and voice?", True))
     agent = opts.get("agent") or q("Agent in each session (claude or opencode)", "opencode" if ods else "claude")
+    if agent in AGENTS:
+        checks = preflight(host, agent, run=run, which=shutil_which)
+        say("\nPrerequisites:")
+        for good, item, fix in checks:
+            say(f"  {'✓' if good else '✗'} {item}" + ("" if good else f"\n      fix: {fix}"))
+        if not all(good for good, _, _ in checks) and not opts.get("yes") and not \
+                read("Some prerequisites are missing. Continue anyway? [y/N]: ").strip().lower().startswith("y"):
+            raise SystemExit("setup stopped: install the missing prerequisites above, then run `tabdeck setup` again")
     assistant = opts.get("assistant") or q("Assistant name", "ODS" if ods and agent == "opencode" else "Jarvis")
     wake = opts.get("wake") or q("Wake word", "hey ods" if assistant.upper() == "ODS" else assistant.lower())
     port_text = str(opts.get("port") or q("Port", "8766" if instance else "8765"))

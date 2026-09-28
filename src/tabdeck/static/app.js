@@ -7,7 +7,7 @@ function load(k) { try { return localStorage.getItem('tabdeck.' + k); } catch { 
 function save(k, v) { try { localStorage.setItem('tabdeck.' + k, v ?? ''); } catch { /* private mode */ } }
 
 const S = {
-  sessions: [], isLocal: false, iterm: true,
+  sessions: [], isLocal: false, canPair: false, iterm: true,
   selected: load('selected') || null, muted: load('muted') === '1',
   prev: {}, prevMessage: {}, readIdx: {}, chunks: {}, pending: null,
   showRaw: false, rawText: '', rawTimer: null, selectAfter: null, replyText: {},
@@ -180,7 +180,7 @@ function connect() {
 }
 
 function onState(m) {
-  S.sessions = m.sessions; S.isLocal = m.is_local; S.iterm = m.iterm_connected; S.source = m.source;
+  S.sessions = m.sessions; S.isLocal = m.is_local; S.canPair = !!m.can_pair; S.iterm = m.iterm_connected; S.source = m.source;
   for (const s of S.sessions) {
     const before = S.prev[s.id];
     if (before && before !== s.status) delete S.chunks[s.id];
@@ -208,7 +208,7 @@ function ago(t) {
 }
 
 function render() {
-  $('#pair').hidden = !S.isLocal;
+  $('#pair').hidden = !S.canPair;  // any paired device may pair more (the state only reaches paired devices)
   const banner = $('#banner');
   banner.hidden = S.iterm;
   banner.textContent = S.source === 'tmux'

@@ -18,8 +18,10 @@ WireGuard. **Do not expose the hub or the Mac agent to the internet.**
 **Who is trusted:**
 - **Anyone with a shell on the hub server or your Mac.** Requests from `localhost` are trusted on both, so
   protect those accounts as you would your ssh keys.
-- **Paired browsers and phones.** Pairing uses a one-time code (valid 10 minutes) that only the hub machine itself
-  or your Mac agent (with its token) can create: `tabdeck pair` or the widget's *Pair a phone…*. It gives a cookie
+- **Paired browsers and phones.** Pairing uses a one-time code (valid 10 minutes). Only the hub machine itself, your
+  Mac agent (with its token) or an already paired device can create one: `tabdeck pair`, the widget's *Pair a phone…*
+  or ▣ on the web page. A paired device can already type into your terminals, so pairing another gives it nothing
+  new. It gives a cookie
   that does not expire, so a lost phone keeps access until you revoke it. Use **Unpair all phones** (pairing sheet on the Mac page),
   then pair again.
 - **The Mac agent.** It connects to the hub with a bearer token, stored hashed on the hub

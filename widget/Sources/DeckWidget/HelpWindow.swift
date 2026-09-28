@@ -58,6 +58,8 @@ struct HelpView: View {
 
                 section("Requirements", [
                     "• macOS 14 or newer, and **microphone access** for \(model.assistantName) (System Settings → Privacy & Security → Microphone).",
+                    "• **iTerm2 with its Python API enabled:** iTerm2 → Settings → General → Magic → *Enable Python API*. Server sessions open as iTerm tabs through it.",
+                    "• On the hub server: **tmux**, **Claude Code or OpenCode** (logged in), **systemd lingering** (`sudo loginctl enable-linger $USER`) and **cron**. `tabdeck setup` checks all of these.",
                     "• The **Mac agent** running (`\(instance)uv run tabdeck install-agent`): it hears you and connects to the hub.",
                     "• The **hub** reachable over your private network (NetBird, Tailscale or WireGuard): \(model.client.hub.absoluteString)",
                     "• Speech-to-text: Whisper on this Mac, or a server set in Settings. A voice server (e.g. Kokoro) on the hub for the neural voice; otherwise the Mac's own voice is used.",

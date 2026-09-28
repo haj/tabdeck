@@ -9,13 +9,32 @@ TabDeck can use your own model and speech services, for example an [ODS](https:/
 for the language model, Whisper and Kokoro.
 
 ## Quickstart
-**You need:**
-- a **Mac** with macOS 14+, iTerm2 (Settings → General → Magic → *Enable Python API*), Xcode Command Line Tools
-  (`xcode-select --install`) and [uv](https://docs.astral.sh/uv/);
-- a **Linux server** for the hub, with ssh from the Mac by key, `tmux`, and Claude Code or OpenCode installed and
-  logged in;
-- a **private network** between them and your phone, such as NetBird, Tailscale or WireGuard.
+### Prerequisites
+`tabdeck setup` checks these first and tells you how to fix anything missing.
 
+**On the Mac**
+- macOS 14 or newer.
+- **iTerm2** with its **Python API enabled**: iTerm2 → Settings → General → Magic → *Enable Python API*. The Mac
+  agent reads your tabs and opens the tmux tabs through it. TabDeck sets iTerm's tmux-integration options itself:
+  tmux windows open as tabs in the current window, and the connection session is hidden.
+- **Xcode Command Line Tools**: `xcode-select --install`. This builds the widget.
+- **[Homebrew](https://brew.sh)** and **mkcert**: `brew install mkcert`. This creates the local HTTPS certificates.
+- **[uv](https://docs.astral.sh/uv/)**: `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+- Microphone access for the widget, which macOS asks for on first use.
+
+**On the hub server** (Linux with systemd)
+- **ssh from the Mac with a key**, no password prompt.
+- **tmux** 3.2 or newer: `sudo apt install tmux`.
+- **Claude Code** (`curl -fsSL https://claude.ai/install.sh | bash`, then run `claude` once to log in), or **OpenCode**
+  (it ships with [ODS](https://github.com/Osmantic/ODS)).
+- **systemd lingering**: `sudo loginctl enable-linger $USER`. The hub and your sessions then keep running when
+  you're logged out, and start at boot.
+- **cron**: `sudo apt install cron`. It saves your sessions every minute, so they come back after a reboot.
+- Optional: a model server for the assistant (Ollama, or ODS), and a Kokoro voice server for the neural voice.
+
+**Network:** a private network between the Mac, the hub and your phone, such as NetBird, Tailscale or WireGuard.
+
+### Install
 ```sh
 git clone https://github.com/haj/tabdeck.git && cd tabdeck
 uv sync
