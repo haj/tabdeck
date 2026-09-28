@@ -177,20 +177,6 @@ def test_new_session_on_my_mac():
     assert "where" not in resolve(parse("start a session in beacon"), [], {}, None, ["Beacon"])
 
 
-def test_hey_ods_wake_word_as_whisper_writes_it():
-    from tabdeck.commands import wake_pattern
-    ods = wake_pattern("hey ods")
-    assert strip_wake("Hey ODS, status.", ods) == "status."
-    assert strip_wake("hey ods go to Atlas", ods) == "go to Atlas"
-    assert strip_wake("Hey, O.D.S. approve", ods) == "approve"
-    assert strip_wake("Hey O D S, next", ods) == "next"
-    assert strip_wake("Hey odds, what's going on?", ods) == "what's going on?"
-    assert strip_wake("Hey ODS.", ods) == ""
-    assert strip_wake("Jarvis, status.", ods) is None
-    assert strip_wake("ODS is a server", ods) is None  # "hey" is part of this wake word
-    assert strip_wake("they said odds are good", ods) is None
-
-
 def test_any_wake_word_works():
     from tabdeck.commands import wake_pattern
     friday = wake_pattern("Friday")

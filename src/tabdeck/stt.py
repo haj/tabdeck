@@ -15,8 +15,8 @@ def _post(url: str, files: dict, data: dict, timeout: float) -> dict:
     return r.json()
 
 
-class OdsTranscriber:
-    """Speech-to-text through ODS's Whisper service (speaches, OpenAI-compatible /v1/audio/transcriptions),
+class WhisperTranscriber:
+    """Speech-to-text through a Whisper service (e.g. speaches, the one ODS ships; OpenAI-compatible /v1/audio/transcriptions),
     so no Whisper runs on the Mac."""
 
     def __init__(self, url: str, model: str = "Systran/faster-whisper-base", language: str = "en",
@@ -29,10 +29,10 @@ class OdsTranscriber:
         data = {"model": self.model, "prompt": prompt, "language": self.language}
         try:
             text = str(self._post(self.endpoint, files, data, self.timeout).get("text") or "")
-        except Exception as e:  # noqa: BLE001 - ODS down: nothing heard
-            log.warning("ODS speech-to-text unavailable: %s", e)
+        except Exception as e:  # noqa: BLE001 - service down: nothing heard
+            log.warning("Speech-to-text service unavailable: %s", e)
             return ""
         return clean_transcript(text)
 
     def warm(self) -> None:
-        pass  # the ODS service keeps its model loaded
+        pass  # the service keeps its model loaded

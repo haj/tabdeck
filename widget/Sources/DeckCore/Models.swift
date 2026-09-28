@@ -31,7 +31,7 @@ public struct StateMessage: Codable {
     public let active: String?
     /// The voice shared by the widget and the web page (chosen on the hub).
     public let tts_voice: String?
-    /// The assistant's current name and how to address it ("Hey ODS"), from the hub's live settings.
+    /// The assistant's current name and how to address it ("Hey Friday"), from the hub's live settings.
     public let assistant_name: String?
     public let wake_phrase: String?
 }

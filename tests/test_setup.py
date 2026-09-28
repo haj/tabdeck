@@ -78,7 +78,7 @@ def test_detect_hub_reads_hostname_vpn_ip_and_ods_over_ssh():
         detect_hub("me@gone", run=down)
 
 
-def test_questions_suggest_ods_defaults_when_ods_is_found(monkeypatch):
+def test_finding_ods_uses_its_services_but_keeps_the_tabdeck_names(monkeypatch):
     monkeypatch.setattr("tabdeck.setup.preflight", lambda *a, **k: [])  # prerequisites are tested separately
     from tabdeck.setup import run_setup
 
@@ -86,7 +86,7 @@ def test_questions_suggest_ods_defaults_when_ods_is_found(monkeypatch):
         cmd = args[-1]
         out = {"hostname -s || hostname": "gpubox\n", "netbird status 2>/dev/null": "NetBird IP: 100.64.3.4/16\n"}
         return SimpleNamespace(returncode=0, stdout=out.get(cmd, ""))
-    replies = iter(["ods", "me@gpubox", "", "", "", "", "", ""])  # instance, host, then Enter keeps each suggestion
+    replies = iter(["gpu", "me@gpubox", "", "", "", "", "", ""])  # instance, host, then Enter keeps each suggestion
     asked = []
 
     def ask(prompt):
@@ -94,7 +94,7 @@ def test_questions_suggest_ods_defaults_when_ods_is_found(monkeypatch):
         return next(replies)
     a = run_setup({}, ask=ask, run=run, say=lambda *x: None)
     assert (a.instance, a.ip, a.ods, a.agent, a.assistant, a.wake, a.port, a.session, a.hub_name, a.mac_tabs) == (
-        "ods", "100.64.3.4", True, "opencode", "ODS", "hey ods", 8766, "ods", "gpubox", False)
+        "gpu", "100.64.3.4", True, "opencode", "Jarvis", "jarvis", 8766, "gpu", "gpubox", False)
     assert any("[100.64.3.4]" in p for p in asked)  # the detected IP is offered, not typed
 
 

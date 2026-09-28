@@ -30,12 +30,12 @@ FQDN = re.compile(r"^[A-Za-z0-9.-]{1,253}$")
 
 @dataclass
 class Answers:
-    instance: str  # "" for the default setup, else e.g. "ods" (~/.tabdeck-ods, its own launchd jobs)
+    instance: str  # "" for the default setup, else e.g. "gpu" (~/.tabdeck-gpu, its own launchd jobs)
     host: str  # ssh target of the hub server
     ip: str  # its private-network (NetBird, Tailscale, WireGuard) IP
     agent: str  # claude or opencode
     assistant: str  # e.g. Jarvis
-    wake: str  # e.g. jarvis, "hey ods"
+    wake: str  # e.g. jarvis, "hey friday"
     port: int
     session: str  # tmux session on servers
     ods: bool  # the hub server runs ODS: use its model, Whisper and Kokoro
@@ -182,7 +182,7 @@ def run_setup(opts: dict, ask=input, run=subprocess.run, say=print) -> Answers:
 
     instance = opts.get("instance")
     if instance is None:
-        instance = q("Instance name (Enter for the default setup; e.g. ods for a second one)", os.environ.get("TABDECK_INSTANCE", ""))
+        instance = q("Instance name (Enter for the default setup; e.g. gpu for a second one)", os.environ.get("TABDECK_INSTANCE", ""))
     host = opts.get("host") or q("Hub server ssh target (user@host or ~/.ssh/config alias)", "")
     say(f"Checking {host} over ssh…")
     found = detect_hub(host, run=run)
@@ -197,8 +197,8 @@ def run_setup(opts: dict, ask=input, run=subprocess.run, say=print) -> Answers:
         if not all(good for good, _, _ in checks) and not opts.get("yes") and not \
                 read("Some prerequisites are missing. Continue anyway? [y/N]: ").strip().lower().startswith("y"):
             raise SystemExit("setup stopped: install the missing prerequisites above, then run `tabdeck setup` again")
-    assistant = opts.get("assistant") or q("Assistant name", "ODS" if ods and agent == "opencode" else "Jarvis")
-    wake = opts.get("wake") or q("Wake word", "hey ods" if assistant.upper() == "ODS" else assistant.lower())
+    assistant = opts.get("assistant") or q("Assistant name", "Jarvis")
+    wake = opts.get("wake") or q("Wake word", assistant.lower())
     port_text = str(opts.get("port") or q("Port", "8766" if instance else "8765"))
     port = int(port_text) if port_text.isdigit() else -1  # validate() reports a bad one
     session = opts.get("session") or instance or "deck"

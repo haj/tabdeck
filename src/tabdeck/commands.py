@@ -34,8 +34,6 @@ NUMBERS = {"one": 1, "two": 2, "to": 2, "too": 2, "three": 3, "four": 4, "for": 
 # Wake words, as Whisper writes them. Any other word (or two) works too: "hey"/"okay" is optional before it.
 WAKE_PRESETS = {
     "jarvis": r"(?:(?:hey|okay|ok)[\s,]*)?jarvis\b",
-    # "Hey ODS", "hey, O.D.S.", "Hey O D S", "hey odds": "hey" is required, "ODS" alone is too common.
-    "hey ods": r"(?:hey|okay|ok)[\s,]*(?:o\.?\s?d\.?\s?s|odds)(?![a-z])\.?",
 }
 
 

@@ -859,7 +859,7 @@ def test_new_session_waits_for_opencodes_prompt_before_typing_the_task(env, tmp_
 def test_assistant_hint_for_whisper():
     from tabdeck.web import assistant_hint
     assert assistant_hint("Jarvis", "jarvis") == "Jarvis"
-    assert assistant_hint("ODS", "hey ods") == 'ODS ("Hey ODS")'
+    assert assistant_hint("Friday", "hey friday") == 'Friday ("Hey Friday")'
 
 
 def test_opencode_hub_starts_sessions_through_agent_sh(env, tmp_path):

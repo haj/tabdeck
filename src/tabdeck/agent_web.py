@@ -13,7 +13,7 @@ from .agent import Agent
 from .auth import is_local_request
 from .config import Config, load_config
 
-HINT = re.compile(r'^[A-Za-z][A-Za-z .\'"()-]{0,60}$')  # e.g. 'ODS ("Hey ODS")': a name, never instructions
+HINT = re.compile(r'^[A-Za-z][A-Za-z .\'"()-]{0,60}$')  # e.g. 'Friday ("Hey Friday")': a name, never instructions
 MAC_KEYS = ("mac_tabs", "stt_url", "stt_model")
 RESTART_KEYS = ("hub_url", "agent_token", "hub_ca", "port")  # used when the agent starts
 
@@ -44,8 +44,8 @@ def create_agent_app(agent: Agent, transcriber, utterance, assistant_hint: str =
         model = values.get("stt_model", config.stt_model)
         if "stt_url" in values or "stt_model" in values:
             if url:
-                from .stt import OdsTranscriber
-                transcriber = OdsTranscriber(url, model)
+                from .stt import WhisperTranscriber
+                transcriber = WhisperTranscriber(url, model)
             else:
                 transcriber = base_transcriber
 

@@ -12,7 +12,7 @@ from .config import Config
 from .files import write_private
 from .profiles import instance_suffix
 
-SUFFIX = instance_suffix()  # "" or e.g. "-ods": several instances can live side by side
+SUFFIX = instance_suffix()  # "" or e.g. "-gpu": several instances can live side by side
 LABEL = f"com.tabdeck{SUFFIX}.service"
 HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse",
                "Notification", "Stop", "SessionEnd"]
@@ -164,7 +164,7 @@ def install_widget(config: Config) -> None:
 def deploy_env(path: Path = REPO / "deploy.env") -> dict[str, str]:
     """Machine addresses (HUB_HOST, HUB_IP, …) from the untracked deploy.env, overridden by the environment."""
     env = {}
-    if os.environ.get("DEPLOY_ENV"):  # e.g. deploy-ods.env: one file per setup
+    if os.environ.get("DEPLOY_ENV"):  # e.g. deploy-gpu.env: one file per setup
         path = path.parent / os.environ["DEPLOY_ENV"]
     if path.exists():
         for line in path.read_text().splitlines():

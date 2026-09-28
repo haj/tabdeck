@@ -34,7 +34,7 @@ class Config:
     hub_server: str = "hub"  # the name of the server the hub runs on (its tmux sessions are that server's)
     agent: str = "claude"  # the coding agent sessions run: "claude" or "opencode" (profiles.py)
     assistant_name: str = "Jarvis"  # what the voice assistant is called
-    wake_word: str = "jarvis"  # "jarvis", "hey ods", or any word or two (commands.wake_pattern)
+    wake_word: str = "jarvis"  # "jarvis", or any word or two (commands.wake_pattern)
     tmux_session: str = "deck"  # the tmux session holding one window per agent session on servers
     # The model behind the assistant: Ollama (/api/chat) or an OpenAI-compatible server such as ODS's LiteLLM.
     llm_api: str = "ollama"  # "ollama" or "openai" (url ending in /v1)
@@ -52,7 +52,7 @@ class Config:
 
     @property
     def home(self) -> str:
-        """The data folder as a shell on any machine of this instance sees it, e.g. ~/.tabdeck-ods."""
+        """The data folder as a shell on any machine of this instance sees it, e.g. ~/.tabdeck-gpu."""
         return "~/" + self.data_dir.name
 
     @property

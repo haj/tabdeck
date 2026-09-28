@@ -77,8 +77,8 @@ def make_source(config: Config):
 
 def make_transcriber(config: Config):
     if config.stt_url:
-        from .stt import OdsTranscriber
-        return OdsTranscriber(config.stt_url, config.stt_model)  # ODS's Whisper, on the ODS server
+        from .stt import WhisperTranscriber
+        return WhisperTranscriber(config.stt_url, config.stt_model)  # an OpenAI-compatible Whisper service
     if sys.platform != "darwin":
         return None  # the hub is a pure server: clients send text
     from .voice import Transcriber
@@ -250,7 +250,7 @@ def cli() -> None:
     sub.add_parser("uninstall", help="remove hook and launchd agent")
     sub.add_parser("install-widget", help="build and start the floating Deck widget")
     sub.add_parser("export-projects", help="print project git remotes as JSON (to seed the hub)")
-    srv = sub.add_parser("install-server", help="always-on OpenCode sessions on an ODS server, shown as iTerm tabs")
+    srv = sub.add_parser("install-server", help="always-on agent sessions on a server, shown as iTerm tabs")
     srv.add_argument("ssh", help="ssh target, e.g. user@host or an ~/.ssh/config alias")
     srv.add_argument("name", help="short name, e.g. trading")
     srv.add_argument("--projects", default="Projects", help="projects folder relative to home (default Projects)")
@@ -264,17 +264,17 @@ def cli() -> None:
     pr = sub.add_parser("pair", help="show a pairing QR code and link for a phone or browser")
     pr.add_argument("--open", action="store_true", help="also open it here, pairing this Mac's browser")
     st = sub.add_parser("setup", help="set up a hub, this Mac and the widget (asks; flags skip questions)")
-    st.add_argument("--instance", help="name of a second setup next to the first, e.g. ods")
+    st.add_argument("--instance", help="name of a second setup next to the first, e.g. gpu")
     st.add_argument("--host", help="ssh target of the hub server")
     st.add_argument("--ip", help="the hub's private-network IP")
     st.add_argument("--agent", choices=["claude", "opencode"])
     st.add_argument("--assistant", help="assistant name, e.g. Jarvis")
-    st.add_argument("--wake", help='wake word, e.g. jarvis or "hey ods"')
+    st.add_argument("--wake", help='wake word, e.g. jarvis or "hey friday"')
     st.add_argument("--port", type=int)
     st.add_argument("--session", help="tmux session on servers (default deck, or the instance name)")
     st.add_argument("--hub-name", dest="hub_name", help="the hub server's short name (default: its hostname)")
     st.add_argument("--fqdn", help="the hub's private-network name, added to its certificate")
-    st.add_argument("--ods", action=argparse.BooleanOptionalAction, default=None, help="use ODS on the hub")
+    st.add_argument("--ods", action=argparse.BooleanOptionalAction, default=None, help="the hub runs ODS: use its model, Whisper and voice")
     st.add_argument("--mac-tabs", dest="mac_tabs", action=argparse.BooleanOptionalAction, default=None,
                     help="also report this Mac's own iTerm tabs")
     st.add_argument("--yes", action="store_true", help="write the files and run every step without asking")

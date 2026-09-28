@@ -45,7 +45,7 @@ final class AppModel: ObservableObject {
     @Published var assistantName = Instance.assistant
     @Published var wakePhrase = Instance.wakePhrase
     var idleLine: String { "Say “\(wakePhrase), status”" }
-    /// The hint Whisper gets: 'ODS ("Hey ODS")', or just 'Jarvis'.
+    /// The hint Whisper gets: 'Friday ("Hey Friday")', or just 'Jarvis'.
     var nameHint: String { wakePhrase.caseInsensitiveCompare(assistantName) == .orderedSame ? assistantName : "\(assistantName) (\"\(wakePhrase)\")" }
 
     let client = ServiceClient()

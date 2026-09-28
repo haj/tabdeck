@@ -72,7 +72,7 @@ jobs, cron lines and tmux sessions.
 | Setting | Default | Meaning |
 |---|---|---|
 | `agent` | `claude` | `claude` or `opencode` |
-| `assistant_name` / `wake_word` | `Jarvis` / `jarvis` | e.g. `ODS` / `hey ods`, or any word |
+| `assistant_name` / `wake_word` | `Jarvis` / `jarvis` | any name, e.g. `Friday` / `hey friday` |
 | `port` | `8765` | hub and Mac agent port |
 | `tmux_session` | `deck` | tmux session on servers |
 | `projects_dir` | `~/Projects` | the hub's projects folder: ＋ lists its folders, and *New project* creates one there |
@@ -100,7 +100,7 @@ uv run tabdeck setup  # asks a few questions, detects the rest over ssh, then de
 
 Every answer is also a flag (`tabdeck setup --help`). For example, a second setup next to the first:
 ```sh
-uv run tabdeck setup --instance ods --host me@ods-server --agent opencode --ods   # "Hey ODS", port 8766
+uv run tabdeck setup --instance gpu --host me@gpu-server --agent opencode --ods   # port 8766; --ods: use ODS's services
 ```
 Pair phones and browsers with `tabdeck pair` (a QR code and link) or the widget menu → **Pair a phone…**.
 

@@ -10,8 +10,8 @@ INSTANCE_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,30}$")
 
 
 def instance_suffix() -> str:
-    """"" for the default instance, "-ods" for TABDECK_INSTANCE=ods: data folder ~/.tabdeck-ods,
-    launchd jobs com.tabdeck-ods.*, cron marker "# tabdeck-ods"."""
+    """"" for the default instance, "-gpu" for TABDECK_INSTANCE=gpu: data folder ~/.tabdeck-gpu,
+    launchd jobs com.tabdeck-gpu.*, cron marker "# tabdeck-gpu"."""
     name = os.environ.get("TABDECK_INSTANCE", "").strip()
     if not name:
         return ""

@@ -96,13 +96,13 @@ class VoiceBody(BaseModel):
 
 
 def wake_phrase(name: str, wake_word: str) -> str:
-    """How to address the assistant, for display: "Jarvis", "Hey ODS"."""
+    """How to address the assistant, for display: "Jarvis", "Hey Friday"."""
     words = [name if w.lower() == name.lower() else w.capitalize() for w in wake_word.split()]
     return " ".join(words) or name
 
 
 def assistant_hint(name: str, wake_word: str) -> str:
-    """How Whisper should expect the assistant to be addressed: "Jarvis", or 'ODS ("Hey ODS")'."""
+    """How Whisper should expect the assistant to be addressed: "Jarvis", or 'Friday ("Hey Friday")'."""
     if " ".join(wake_word.lower().split()) == name.lower():
         return name
     words = [name if w.lower() == name.lower() else w.capitalize() for w in wake_word.split()]
@@ -173,8 +173,8 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
                                   key=config.llm_key or None, timeout=config.intent_timeout,
                                   summary_timeout=config.summary_timeout, assistant=config.assistant_name)
         if config.stt_url:
-            from .stt import OdsTranscriber
-            transcriber = OdsTranscriber(config.stt_url, config.stt_model)
+            from .stt import WhisperTranscriber
+            transcriber = WhisperTranscriber(config.stt_url, config.stt_model)
         else:
             transcriber = base_transcriber
         registry.version += 1  # push the new name and wake phrase to every page and widget
