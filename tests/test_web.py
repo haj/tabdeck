@@ -1022,3 +1022,19 @@ def test_projects_folder_is_a_live_setting(env, tmp_path):
     assert client.get("/api/projects").json()["projects"] == ["api"]
     bad = client.post("/api/settings", json={"projects_dir": str(tmp_path / "missing")})
     assert bad.status_code == 400 and "folder" in bad.json()["detail"]["errors"][0]
+
+
+def test_open_a_session_in_any_folder_under_home(env, tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    (home / "work" / "api").mkdir(parents=True)
+    (tmp_path / "outside").mkdir()
+    (home / "link-out").symlink_to(tmp_path / "outside")
+    monkeypatch.setenv("HOME", str(home))
+    config = Config(data_dir=tmp_path / "data", projects_dir=home / "Projects")
+    app = create_app(registry=env["registry"], bridge=env["bridge"], auth=env["auth"], transcriber=None, config=config)
+    client = TestClient(app, base_url="https://testserver", client=LOCAL)
+    r = client.post("/api/new_session", json={"project": "", "path": "~/work/api"})
+    assert r.status_code == 200 and env["bridge"].created[-1][0] == str((home / "work" / "api").resolve())
+    for bad in ("~/missing", "/etc", "~/../outside", "~/link-out", str(tmp_path / "outside")):
+        assert client.post("/api/new_session", json={"project": "", "path": bad}).status_code in (400, 404), bad
+    assert client.post("/api/new_session", json={"project": "", "path": "~/work/api", "where": "gpubox"}).status_code == 400

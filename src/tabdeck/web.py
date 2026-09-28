@@ -127,6 +127,7 @@ class ProjectBody(BaseModel):
     task: str = ""
     where: str = ""  # "" (or the hub's own name): on the hub; "mac": in iTerm on the Mac; else a server name
     create: bool = False  # a new project: make its folder in the projects folder first
+    path: str = ""  # instead of a project: any existing folder under the hub user's home, e.g. ~/work/api
 
 
 class UtteranceBody(BaseModel):
@@ -565,6 +566,21 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
     @app.post("/api/new_session")
     async def new_session(body: ProjectBody, request: Request, background: BackgroundTasks):
         require(request)
+        if body.path:
+            # Any folder on the hub, as long as it is inside its user's home (resolved: no ../ or links out).
+            if body.where not in ("", config.hub_server):
+                raise HTTPException(400, "A folder path works for sessions on the hub; pick a project for other places")
+            home = Path.home().resolve()
+            folder = Path(body.path.strip()).expanduser().resolve()
+            if folder != home and home not in folder.parents:
+                raise HTTPException(400, f"{body.path} is outside your home folder")
+            if not folder.is_dir():
+                raise HTTPException(404, f"No folder {body.path}")
+            sid = await bridge.create_tab(str(folder), agent.launch(config.home))
+            registry.reset_hooks(sid)
+            if body.task.strip():
+                background.add_task(send_when_ready, sid, body.task.strip())
+            return {"id": sid}
         if body.where not in ("", "mac", config.hub_server):
             # Another server: the Mac starts it through its tmux gateway there.
             mac = remotes.get("mac")

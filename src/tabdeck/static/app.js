@@ -567,7 +567,22 @@ $('#new').onclick = async () => {
   const box = document.createElement('fieldset');
   box.className = 'newproj';
   box.append(mk('legend', '', 'New project'), name, create);
-  form.append(mk('h2', '', 'New session'), list, box, mk('button', 'btn', 'Close'));
+  // Any existing folder on the hub, under its user's home (e.g. ~/work/api).
+  const path = document.createElement('input');
+  path.placeholder = '~/work/api'; path.autocomplete = 'off'; path.autocapitalize = 'off'; path.spellcheck = false;
+  const open = mk('button', 'btn primary', 'Start here', async (ev) => {
+    ev.preventDefault();
+    const where = path.value.trim();
+    if (!where) return;
+    try {
+      const r = await api('/api/new_session', { method: 'POST', json: { project: '', path: where } });
+      sheet.close(); S.selectAfter = r.id; speak(`Starting a session in ${where}.`, true);
+    } catch (e) { toast(e.message); }
+  });
+  const folder = document.createElement('fieldset');
+  folder.className = 'newproj';
+  folder.append(mk('legend', '', 'Open a folder'), path, open);
+  form.append(mk('h2', '', 'New session'), list, box, folder, mk('button', 'btn', 'Close'));
   sheet.append(form);
   sheet.showModal();
 };

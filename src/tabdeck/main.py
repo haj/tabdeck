@@ -258,6 +258,9 @@ def cli() -> None:
     mv.add_argument("project", help="folder name in ~/Projects, e.g. myproject")
     mv.add_argument("server", help="a server name from <data dir>/servers.json")
     mv.add_argument("--session", help="conversation id (default: the project's most recent one)")
+    op = sub.add_parser("open", help="on the hub server: start a session in a folder (default: this one)")
+    op.add_argument("path", nargs="?", default=".", help="a folder under your home, e.g. ~/work/api")
+    op.add_argument("--task", default="", help="first message to send once the agent is ready")
     pr = sub.add_parser("pair", help="show a pairing QR code and link for a phone or browser")
     pr.add_argument("--open", action="store_true", help="also open it here, pairing this Mac's browser")
     st = sub.add_parser("setup", help="set up a hub, this Mac and the widget (asks; flags skip questions)")
@@ -286,6 +289,10 @@ def cli() -> None:
     elif args.cmd == "install-agent":
         from .install import install_agent
         install_agent(load_config())
+    elif args.cmd == "open":
+        from .pair import open_folder
+        sid = open_folder(load_config(), args.path, args.task)
+        print(f"Session {sid} started in {args.path}: it opens as an iTerm tab on your Mac.")
     elif args.cmd == "pair":
         from .pair import pair
         pair(load_config(), open_here=args.open)

@@ -105,6 +105,13 @@ uv run tabdeck setup --instance ods --host me@ods-server --agent opencode --ods 
 Pair phones and browsers with `tabdeck pair` (a QR code and link) or the widget menu → **Pair a phone…**.
 
 ## Using it
+**Starting a session:**
+- a project from the ＋ list (the folders in the projects folder);
+- *New project* (creates a folder there);
+- *Open a folder* with any path under the hub user's home (`~/work/api`);
+- on the server, `tabdeck open ~/work/api` (or `tabdeck open` in the current folder);
+- by voice: "start Claude in api".
+
 Say **"Jarvis, what's going on?"**, **"Jarvis, start Claude on server in myproject"**, **"tell api to run the
 tests"**, **"approve"** or **"catch me up"**. Everything also works from the web page. See `docs/server-sessions.md`.
 

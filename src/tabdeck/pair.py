@@ -3,6 +3,7 @@ The hub hands out codes to its Mac agent's token; the link works once, for 10 mi
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import httpx
@@ -43,3 +44,24 @@ def pair(config: Config, open_here: bool = False) -> None:
     if open_here:
         subprocess.run(["open", "--", url], check=False)  # pairs this Mac's browser
         print("Opened in this Mac's browser: it is now paired.")
+
+
+def _post_local(url: str, body: dict, verify) -> dict:
+    r = httpx.post(url, json=body, verify=verify, timeout=30)
+    if r.status_code >= 400:
+        try:
+            detail = r.json().get("detail")
+        except ValueError:
+            detail = r.text
+        raise SystemExit(f"The hub said: {detail}")
+    return r.json()
+
+
+def open_folder(config: Config, path: str, task: str = "", post=_post_local) -> str:
+    """`tabdeck open PATH` on the hub server: a session in that folder, like opening it in an editor."""
+    folder = str(Path(path).expanduser().resolve())
+    ca = config.data_dir / "ca.pem"  # the hub's certificate authority (deployed with it); localhost otherwise
+    body = {"project": "", "path": folder}
+    if task:
+        body["task"] = task
+    return str(post(f"https://127.0.0.1:{config.port}/api/new_session", body, str(ca) if ca.exists() else False)["id"])
