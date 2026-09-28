@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from starlette.websockets import WebSocketDisconnect
 from urllib.parse import urlsplit
 
-from .auth import Auth, is_local
+from .auth import Auth, is_local, is_local_request
 from . import settings as live_settings
 from .commands import Command, normalize, parse, resolve, strip_wake, wake_pattern
 from .config import Config, load_config
@@ -235,14 +235,14 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
         bearer = conn.headers.get("authorization", "")
         if agents is not None and bearer.startswith("Bearer ") and agents.verify(bearer[7:]):
             return True
-        return is_local(host_of(conn)) or auth.valid(conn.cookies.get(COOKIE))
+        return is_local_request(conn) or auth.valid(conn.cookies.get(COOKIE))
 
     def require(request: Request) -> None:
         if not authed(request):
             raise HTTPException(401, "Not paired")
 
     def require_local(request: Request) -> None:
-        if not (is_local(host_of(request)) and same_origin(request)):
+        if not (is_local_request(request) and same_origin(request)):
             raise HTTPException(403, "Only from this Mac")
 
     def session(sid: str) -> SessionState:
@@ -331,7 +331,7 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
     @app.get("/api/state")
     def get_state(request: Request):
         require(request)
-        return state_json(is_local(host_of(request)))
+        return state_json(is_local_request(request))
 
     @app.websocket("/ws")
     async def ws(websocket: WebSocket):
@@ -339,7 +339,7 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
             await websocket.close(code=4401)
             return
         await websocket.accept()
-        local = is_local(host_of(websocket))
+        local = is_local_request(websocket)
 
         async def sender():
             last, idle = -1, 0.0

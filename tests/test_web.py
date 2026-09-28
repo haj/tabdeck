@@ -961,3 +961,13 @@ def test_page_and_static_files_are_revalidated_after_a_deploy(env):
     for path in ("/", "/static/style.css", "/static/app.js"):
         r = env["local"].get(path)
         assert r.status_code == 200 and r.headers["cache-control"] in ("no-cache", "no-store"), path  # new versions show at once
+
+
+@pytest.mark.parametrize("header", ["X-Forwarded-For", "Forwarded", "X-Real-IP", "CF-Connecting-IP"])
+def test_requests_through_a_proxy_on_the_hub_are_never_trusted_as_local(env, header):
+    # nginx, Caddy or a tunnel on the same machine connect from 127.0.0.1; the internet must still pair.
+    h = {header: "203.0.113.7"}
+    assert env["local"].get("/api/state", headers=h).status_code == 401
+    assert env["local"].post("/api/pair", headers=h).status_code == 403
+    assert env["local"].post("/hook", json={}, headers=h).status_code == 403
+    assert env["local"].get("/api/state").status_code == 200  # a direct local request still works

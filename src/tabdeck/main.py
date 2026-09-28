@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import ipaddress
 import json
 import logging
 import os
@@ -117,6 +118,15 @@ async def ports_loop(registry: Registry, forwarders, config: Config) -> None:
         await asyncio.sleep(3)
 
 
+def private_address(ip: str) -> bool:
+    """Private, VPN (NetBird/Tailscale 100.64.0.0/10) or loopback: the only extra addresses the hub listens on."""
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return not addr.is_unspecified and (addr.is_private or addr.is_loopback or addr in ipaddress.ip_network("100.64.0.0/10"))
+
+
 def _bind(host: str, port: int) -> socket.socket:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -140,7 +150,10 @@ async def run(config: Config) -> None:
                      agents=AgentTokens(config.data_dir / "agents.json"), remotes=getattr(bridge, "remotes", {}))
 
     sockets = [_bind("127.0.0.1", config.port)]
-    if config.netbird_ip:
+    if config.netbird_ip and not private_address(config.netbird_ip):
+        log.error("refusing to listen on %s: not a private or VPN address (TabDeck is not meant for the internet); "
+                  "serving localhost only", config.netbird_ip)
+    elif config.netbird_ip:
         try:
             sockets.append(_bind(config.netbird_ip, config.port))
         except OSError as e:

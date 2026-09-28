@@ -80,3 +80,11 @@ async def test_refresh_urls_skips_remote_tabs_even_without_url_host(tmp_path):
     r.update([Snapshot("mac-A", "t", "/p/F", "claude", "", 100, "", urls=("http://localhost:9999/",), remote=True)], 1)
     await refresh_urls(r, FakeForwarders(), Config(data_dir=tmp_path, netbird_ip="192.0.2.10"), "100 1\n", "")
     assert r.sessions["mac-A"].urls == ["http://localhost:9999/"]
+
+
+def test_the_hub_only_listens_on_private_addresses():
+    from tabdeck.main import private_address
+    for ip in ("100.103.1.2", "10.0.0.5", "192.168.1.9", "172.16.3.4", "127.0.0.1", "100.64.0.1"):
+        assert private_address(ip), ip
+    for ip in ("8.8.8.8", "1.1.1.1", "0.0.0.0", "", "not-an-ip"):
+        assert not private_address(ip), ip

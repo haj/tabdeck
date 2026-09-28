@@ -314,3 +314,10 @@ def test_widget_passes_the_hubs_live_name_to_whisper(tmp_path):
                 files={"audio": ("s.wav", b"\x00" * 2000, "audio/wav")})
     assert T.prompts[0].startswith('The assistant is called Friday ("Hey Friday").')
     assert T.prompts[1].startswith("The assistant is called Jarvis.")  # odd hints are ignored
+
+
+def test_mac_agent_refuses_proxied_requests(tmp_path):
+    agent, _ = make(tmp_path)
+    client, _, _ = local_settings_client(tmp_path, agent)
+    assert client.get("/api/local-settings", headers={"X-Forwarded-For": "203.0.113.7"}).status_code == 403
+    assert client.post("/hook", json={}, headers={"Forwarded": "for=203.0.113.7"}).status_code == 403

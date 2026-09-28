@@ -10,7 +10,7 @@ from fastapi.responses import Response
 
 from . import settings as live_settings
 from .agent import Agent
-from .auth import is_local
+from .auth import is_local_request
 from .config import Config, load_config
 
 HINT = re.compile(r'^[A-Za-z][A-Za-z .\'"()-]{0,60}$')  # e.g. 'ODS ("Hey ODS")': a name, never instructions
@@ -26,7 +26,7 @@ def create_agent_app(agent: Agent, transcriber, utterance, assistant_hint: str =
     base_transcriber = transcriber  # Whisper on this Mac (mlx), when stt_url is empty
 
     def local_only(request: Request) -> None:
-        if not is_local(request.client.host if request.client else ""):
+        if not is_local_request(request):  # never through a proxy or tunnel
             raise HTTPException(403, "Only from this Mac")
 
     def same_origin(request: Request) -> None:

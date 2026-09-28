@@ -128,3 +128,8 @@ def test_running_out_of_answers_stops_cleanly():
         raise EOFError
     with pytest.raises(SystemExit, match="setup needs"):
         run_setup({}, ask=eof, run=lambda *a, **k: SimpleNamespace(returncode=0, stdout=""), say=lambda *x: None)
+
+
+def test_setup_refuses_a_public_hub_ip():
+    problems = validate(answers(ip="8.8.8.8"))
+    assert problems and "public" in problems[0]

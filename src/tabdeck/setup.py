@@ -47,8 +47,11 @@ def validate(a: Answers) -> list[str]:
     if not SSH_TARGET.match(a.host):
         problems.append(f"ssh target {a.host!r} should look like user@host or an ~/.ssh/config alias")
     try:
-        if ipaddress.ip_address(a.ip).version != 4:
+        ip = ipaddress.ip_address(a.ip)
+        if ip.version != 4:
             raise ValueError
+        if not (ip.is_private or ip.is_loopback or ip in ipaddress.ip_network("100.64.0.0/10")):
+            problems.append(f"IP {a.ip} is a public address: the hub must use its private-network (VPN) IP")
     except ValueError:
         problems.append(f"IP {a.ip!r} is not an IPv4 address")
     if a.agent not in AGENTS:

@@ -9,10 +9,19 @@ from pathlib import Path
 from .files import write_private
 
 LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost"}
+# Set by reverse proxies and tunnels (nginx, Caddy, Cloudflare, ngrok). A request carrying one came from elsewhere,
+# even though it reaches us from 127.0.0.1, so it gets no localhost trust.
+PROXY_HEADERS = ("x-forwarded-for", "forwarded", "x-real-ip", "cf-connecting-ip", "x-forwarded-host", "true-client-ip")
 
 
 def is_local(host: str) -> bool:
     return host in LOCAL_HOSTS
+
+
+def is_local_request(conn) -> bool:
+    """A request made on this machine itself: from localhost, and not relayed by a proxy or tunnel."""
+    host = conn.client.host if conn.client else ""
+    return is_local(host) and not any(h in conn.headers for h in PROXY_HEADERS)
 
 
 def _hash(token: str) -> str:
