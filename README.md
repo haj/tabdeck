@@ -19,12 +19,15 @@ halves.
 </picture>
 
 **On your Mac**, the widget floats above your windows: a one-line status that listens for the wake word, and a
-click opens every session (the chevron tucks it into the menu bar):
+click opens every session (the chevron tucks it into the menu bar). The menu bar icon opens the menu: show or hide
+the widget, pause listening, pair a phone, pick a voice, settings and help:
 
 <p>
   <img src="docs/screenshots/widget-compact.png" width="256" alt="The widget's compact bar: one session needs you; say Jarvis, status">
   &nbsp;
   <img src="docs/screenshots/widget.png" width="256" alt="The widget expanded: each session with its status and last message">
+  &nbsp;
+  <img src="docs/screenshots/menu.png" width="200" alt="The menu bar menu: Hide widget, Pause listening, Open TabDeck page, Pair a phone, Voice, Answer length, Settings, Reload config, Help, Quit">
 </p>
 
 **On your phone or in a browser** (the paired web app; the same sessions, from anywhere on your private network):
