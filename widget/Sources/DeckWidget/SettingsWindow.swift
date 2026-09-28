@@ -111,7 +111,7 @@ final class SettingsStore: ObservableObject {
         } catch { wakeResult = Self.describe(error) }
     }
 
-    static func describe(_ error: Error) -> String {
+    nonisolated static func describe(_ error: Error) -> String {
         (error as? ServiceError)?.message ?? error.localizedDescription
     }
 }

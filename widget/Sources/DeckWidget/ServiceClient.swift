@@ -18,7 +18,8 @@ enum ServiceError: Error {
 }
 
 /// Talks to the local TabDeck service (mkcert certificate is trusted via the system keychain).
-final class ServiceClient {
+/// Its settings (hub, token) change only on the main thread; URLSession itself is thread-safe.
+final class ServiceClient: @unchecked Sendable {
     /// The TabDeck hub (state and actions). Defaults to this Mac for the old single-machine setup.
     var hub = Instance.localURL
     /// The local agent: speech recognition runs here, on the Mac.

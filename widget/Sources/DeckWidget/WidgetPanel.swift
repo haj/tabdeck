@@ -23,11 +23,13 @@ final class WidgetPanel: NSPanel {
         keepOnScreen()  // a saved position can be behind the Dock or on a display that is gone
         let center = NotificationCenter.default
         for name in [NSWindow.didResizeNotification, NSWindow.didMoveNotification] {
-            center.addObserver(forName: name, object: self, queue: .main) { [weak self] _ in self?.keepOnScreen() }
+            center.addObserver(forName: name, object: self, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.keepOnScreen() }  // queue: .main
+            }
         }
         // Displays added or removed, resolution or Dock changes.
         center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.keepOnScreen()
+            MainActor.assumeIsolated { self?.keepOnScreen() }  // queue: .main
         }
     }
 

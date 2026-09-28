@@ -46,7 +46,7 @@ struct PairView: View {
         .task { await load() }
     }
 
-    private func load() async {
+    @MainActor private func load() async {
         do {
             let link = try await model.client.pairingLink()
             // Only an https link on the hub itself: never a file:// or an app link.
