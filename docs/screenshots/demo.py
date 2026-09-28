@@ -1,7 +1,9 @@
 """A hub with made-up sessions, for README screenshots: no real servers, projects or paths.
 
 Run: uv run python docs/screenshots/demo.py  (serves http://127.0.0.1:8799), then docs/screenshots/shoot.py.
+With DEMO_CERT and DEMO_KEY set it serves https, for the widget (docs/screenshots/widget.sh).
 """
+import os
 import tempfile
 import time
 from pathlib import Path
@@ -95,7 +97,9 @@ def main():
     registry.set_urls("tmux-3", ["http://localhost:4173/upgrading"])
     app = create_app(registry=registry, bridge=DemoBridge(), auth=Auth(config.tokens_file),
                      transcriber=None, config=config, tts_voices=lambda url: _voices())
-    uvicorn.run(app, host="127.0.0.1", port=8799, log_level="warning")
+    # DEMO_CERT/DEMO_KEY: serve HTTPS (the widget connects over https/wss), e.g. with this Mac's mkcert pair.
+    tls = {"ssl_certfile": os.environ["DEMO_CERT"], "ssl_keyfile": os.environ["DEMO_KEY"]} if os.environ.get("DEMO_CERT") else {}
+    uvicorn.run(app, host="127.0.0.1", port=8799, log_level="warning", **tls)
 
 
 async def _voices():

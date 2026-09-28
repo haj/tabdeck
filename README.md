@@ -18,6 +18,15 @@ halves.
   <img alt="TabDeck architecture: on your Mac, the widget and the Mac agent talk to the hub on an always-on server, which runs the agent sessions in tmux; iTerm2 shows those sessions as tabs; a paired phone uses the hub's web app; the hub can use an optional language model, speech-to-text and voice, all three from one ODS server if you like." src="docs/architecture.png">
 </picture>
 
+**On your Mac**, the widget floats above your windows: a one-line status that listens for the wake word, and a
+click opens every session (the chevron tucks it into the menu bar):
+
+<p>
+  <img src="docs/screenshots/widget-compact.png" width="256" alt="The widget's compact bar: one session needs you; say Jarvis, status">
+  &nbsp;
+  <img src="docs/screenshots/widget.png" width="256" alt="The widget expanded: each session with its status and last message">
+</p>
+
 **On your phone or in a browser** (the paired web app; the same sessions, from anywhere on your private network):
 
 | Sessions at a glance | Approve, deny or reply | Start a session | Settings, live |
