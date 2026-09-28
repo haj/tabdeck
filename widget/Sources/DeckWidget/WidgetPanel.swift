@@ -20,6 +20,29 @@ final class WidgetPanel: NSPanel {
             setFrameOrigin(NSPoint(x: screen.maxX - 340, y: screen.minY + 20))
         }
         setFrameAutosaveName("DeckWidgetPanel")
+        keepOnScreen()  // a saved position can be behind the Dock or on a display that is gone
+        let center = NotificationCenter.default
+        for name in [NSWindow.didResizeNotification, NSWindow.didMoveNotification] {
+            center.addObserver(forName: name, object: self, queue: .main) { [weak self] _ in self?.keepOnScreen() }
+        }
+        // Displays added or removed, resolution or Dock changes.
+        center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.keepOnScreen()
+        }
+    }
+
+    /// Keep the whole widget inside the visible area of its screen: above the Dock, below the menu bar.
+    func keepOnScreen() {
+        guard let area = (screen ?? NSScreen.main)?.visibleFrame.insetBy(dx: 8, dy: 8) else { return }
+        var origin = frame.origin
+        origin.x = min(max(origin.x, area.minX), max(area.minX, area.maxX - frame.width))
+        origin.y = min(max(origin.y, area.minY), max(area.minY, area.maxY - frame.height))
+        if origin != frame.origin { setFrameOrigin(origin) }
+    }
+
+    override func orderFrontRegardless() {
+        super.orderFrontRegardless()
+        keepOnScreen()
     }
 
     override var canBecomeKey: Bool { false }
