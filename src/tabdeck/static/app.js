@@ -259,7 +259,7 @@ function renderDetail() {
     s.urls.slice(2).forEach((u) => { const a = mk('a', 'btn link', u.url); a.href = u.href; a.target = '_blank'; more.append(a); });
     urls.append(more);
   }
-  if (!s.urls.length) urls.append(mk('p', 'muted', 'No app URL detected yet.'));
+  if (!s.urls.length) urls.append(mk('p', 'muted note', 'no app URL detected yet'));
   d.append(urls);
 
   const asking = s.status === 'needs_you';
@@ -271,8 +271,14 @@ function renderDetail() {
     mk('button', 'btn', S.showRaw ? 'Show reply' : 'Show terminal', () => { S.showRaw = !S.showRaw; setupRaw(); renderDetail(); }));
   d.append(actions);
 
+  // A terminal window: the live screen, or the last reply as text.
+  const term = mk('div', 'term', '');
+  const bar = mk('div', 'term-bar', '');
+  bar.append(mk('i', '', ''), mk('i', '', ''), mk('i', '', ''),
+    mk('span', '', `${s.name} — ${S.showRaw ? 'screen' : 'last reply'}`));
   const pre = mk('pre', `reply${S.showRaw ? ' raw' : ''}`, S.showRaw ? (S.rawText || 'Loading terminal…') : 'Loading…');
-  d.append(pre);
+  term.append(bar, pre);
+  d.append(term);
   if (!S.showRaw) fillReply(s.id);
 }
 
@@ -293,7 +299,11 @@ function setupRaw() {
     try {
       S.rawText = (await api(`/api/sessions/${id}/screen`)).text;
       const pre = $('#detail .reply');
-      if (pre && S.showRaw && S.selected === id) pre.textContent = S.rawText;
+      if (pre && S.showRaw && S.selected === id) {
+        const atBottom = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 40;
+        pre.textContent = S.rawText;
+        if (atBottom) pre.scrollTop = pre.scrollHeight;  // follow the output, like a terminal
+      }
     } catch { /* tab gone; onState handles it */ }
   };
   tick();
@@ -481,7 +491,13 @@ $('#typed').addEventListener('submit', async (e) => {
 /* ---------- header buttons ---------- */
 $('#back').onclick = () => { S.selected = null; save('selected', ''); setupRaw(); render(); };
 
-function renderMute() { $('#mute').textContent = S.muted ? '🔇' : '🔊'; }
+const ICON_SOUND = '<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+const ICON_MUTED = '<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+function renderMute() {
+  const b = $('#mute');
+  b.innerHTML = S.muted ? ICON_MUTED : ICON_SOUND;  // constant markup, never data
+  b.classList.toggle('off', S.muted);
+}
 $('#mute').onclick = () => {
   S.muted = !S.muted; save('muted', S.muted ? '1' : '0');
   if (S.muted) stopSpeaking();
@@ -541,6 +557,7 @@ $('#settings').onclick = async () => {
     } else {
       input = document.createElement('input');
       input.type = f.key === 'llm_key' ? 'password' : 'text';
+      input.autocomplete = f.key === 'llm_key' ? 'new-password' : 'off';  // never autofilled
       if (f.key === 'llm_key') input.placeholder = s.values.llm_key ? 'set — type to replace' : 'none';
     }
     input.value = value;

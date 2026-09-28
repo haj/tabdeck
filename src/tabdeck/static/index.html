@@ -10,17 +10,19 @@
 <link rel="manifest" href="/static/manifest.webmanifest">
 <link rel="icon" href="/static/icon.svg">
 <link rel="stylesheet" href="/static/style.css">
-<title>TabDeck ODS</title>
+<meta name="theme-color" content="#10141c">
+<title>TabDeck</title>
 </head>
 <body>
 <header class="top">
   <button id="back" class="icon-btn" aria-label="Back to list">‹</button>
-  <h1>TabDeck</h1>
+  <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+  <h1><b>tabdeck</b><span class="wide"> — sessions</span></h1>
   <span id="conn" class="conn" role="status" aria-label="Connection"></span>
-  <button id="new" class="icon-btn" aria-label="New session">＋</button>
-  <button id="settings" class="icon-btn" aria-label="Settings">⚙</button>
-  <button id="mute" class="icon-btn" aria-label="Toggle voice output">🔊</button>
-  <button id="pair" class="icon-btn" hidden aria-label="Pair phone">▣</button>
+  <button id="new" class="icon-btn" aria-label="New session" title="New session"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button id="settings" class="icon-btn" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
+  <button id="mute" class="icon-btn" aria-label="Toggle voice output" title="Voice on/off"></button>
+  <button id="pair" class="icon-btn" hidden aria-label="Pair phone" title="Pair a phone"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v7h-4M14 18v3"/></svg></button>
 </header>
 <div id="banner" class="banner" hidden></div>
 <main class="layout">
@@ -36,8 +38,8 @@
 <footer class="talkbar">
   <p id="heard" class="heard"></p>
   <div class="row">
-    <form id="typed" class="typed"><input id="typed-input" placeholder="Type a command or reply" autocomplete="off" enterkeyhint="send"><button class="btn">Go</button></form>
-    <button id="talk" class="talk" aria-label="Hold to talk">🎤</button>
+    <form id="typed" class="typed"><input id="typed-input" placeholder="status · tell atlas to run the tests · approve" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send"><button class="btn" aria-label="Send">⏎</button></form>
+    <button id="talk" class="talk" aria-label="Hold to talk" title="Hold to talk"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg></button>
   </div>
 </footer>
 <dialog id="sheet"></dialog>
