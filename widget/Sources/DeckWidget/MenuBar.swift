@@ -1,7 +1,8 @@
 import AppKit
+import Combine
 
 @MainActor
-final class MenuBar: NSObject, NSMenuDelegate {
+final class MenuBar: NSObject {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let model: AppModel
     private let panel: NSPanel
@@ -10,10 +11,48 @@ final class MenuBar: NSObject, NSMenuDelegate {
         self.model = model
         self.panel = panel
         super.init()
-        item.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: Instance.assistant)
-        let menu = NSMenu()
-        menu.delegate = self
-        item.menu = menu
+        if let button = item.button {
+            button.target = self
+            button.action = #selector(clicked(_:))
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
+        updateIcon()
+        // The icon shows what the assistant is doing, which matters most while the widget is hidden.
+        observer = model.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.updateIcon() }
+        }
+    }
+
+    private var observer: AnyCancellable?
+
+    /// Click: show or hide the widget (like Siri). Right-click or ⌥/⌃-click: the menu.
+    @objc private func clicked(_ sender: NSStatusBarButton) {
+        let event = NSApp.currentEvent
+        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.option) == true
+            || event?.modifierFlags.contains(.control) == true {
+            let menu = NSMenu()
+            menuNeedsUpdate(menu)
+            item.menu = menu
+            item.button?.performClick(nil)
+            item.menu = nil
+        } else {
+            model.setWidgetHidden(panel.isVisible)
+        }
+    }
+
+    private func updateIcon() {
+        let symbol: String
+        switch model.light {
+        case .paused: symbol = "mic.slash"
+        case .offline: symbol = "wifi.slash"
+        case .speaking: symbol = "speaker.wave.2.fill"
+        case .active: symbol = "waveform.circle.fill"
+        case .listening: symbol = model.needsYou > 0 ? "exclamationmark.bubble.fill" : "waveform"
+        }
+        if item.button?.image?.accessibilityDescription != symbol {
+            item.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: symbol)
+        }
+        item.button?.toolTip = "\(model.assistantName): click to \(panel.isVisible ? "hide" : "show"), right-click for the menu"
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -58,7 +97,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     }
 
     @objc private func togglePause() { model.togglePause() }
-    @objc private func toggleWidget() { panel.isVisible ? panel.orderOut(nil) : panel.orderFrontRegardless() }
+    @objc private func toggleWidget() { model.setWidgetHidden(panel.isVisible) }
     @objc private func openPage() { model.openWebPage() }
     @objc private func openSettings() { model.openSettings() }
     @objc private func reloadConfig() { model.reloadConfig() }

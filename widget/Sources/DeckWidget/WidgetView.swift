@@ -75,6 +75,11 @@ struct WidgetView: View {
                     .padding(.horizontal, 7).padding(.vertical, 2)
                     .background(Color.orange, in: Capsule())
             }
+            Button { model.setWidgetHidden(true) } label: {
+                Image(systemName: "chevron.up.circle.fill").font(.system(size: 16)).foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Hide in the menu bar (click the menu bar icon to bring it back)")
         }
         .contentShape(Rectangle())
         .onTapGesture { model.expanded.toggle() }

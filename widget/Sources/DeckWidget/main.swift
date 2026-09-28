@@ -10,7 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         model = AppModel()
         panel = WidgetPanel(root: AnyView(WidgetView(model: model)))
-        panel.orderFrontRegardless()
+        if !model.widgetHidden { panel.orderFrontRegardless() }
+        model.onWidgetHidden = { [weak panel] hidden in hidden ? panel?.orderOut(nil) : panel?.orderFrontRegardless() }
         menuBar = MenuBar(model: model, panel: panel)
         model.start()
         deckLog("Deck widget started")

@@ -32,6 +32,15 @@ final class AppModel: ObservableObject {
     @Published private var followupTick = 0
     @Published var answerLength = AppModel.setting("answer_length") ?? "normal"
     @Published var voices: [String] = []
+    /// Tucked into the menu bar (like Siri): still listening and speaking, just not on screen.
+    @Published private(set) var widgetHidden = UserDefaults.standard.bool(forKey: "widgetHidden")
+    var onWidgetHidden: ((Bool) -> Void)?
+
+    func setWidgetHidden(_ hidden: Bool) {
+        widgetHidden = hidden
+        UserDefaults.standard.set(hidden, forKey: "widgetHidden")
+        onWidgetHidden?(hidden)
+    }
     /// The assistant's name and wake phrase: from the hub's live settings (the build's values until it answers).
     @Published var assistantName = Instance.assistant
     @Published var wakePhrase = Instance.wakePhrase
