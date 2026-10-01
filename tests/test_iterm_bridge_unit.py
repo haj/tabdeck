@@ -148,4 +148,97 @@ async def test_tmux_commands_and_window_lookup_go_through_the_gateway():
     n = len(conns["c1"].commands)
     await b.snapshot()
     await b.snapshot()
-    assert len(conns["c1"].commands) == n + 2  # matched tabs are remembered; only the ambiguous one is retried
+    assert len(conns["c1"].commands) == n  # matched tabs are remembered; the ambiguous one waits TMUX_RETRY
+
+
+class Clock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+class CountingSession(FakeSession):
+    """Counts iTerm API calls: each one is a round trip on iTerm's main thread."""
+    def __init__(self, sid, job="claude"):
+        super().__init__(sid)
+        self.job, self.calls = job, []
+
+    async def async_get_screen_contents(self):
+        self.calls.append("screen")
+        return Contents()
+
+    async def async_get_variable(self, name):
+        self.calls.append(name)
+        return {"pid": 7, "jobName": self.job, "path": "/p", "tty": "/dev/ttys1"}.get(name, "x")
+
+
+def counting_bridge(*sessions):
+    b, clock = ItermBridge(clock=Clock()), None
+    clock = b._clock
+    b.app = FakeApp({s.session_id: s for s in sessions})
+    b._sessions = lambda: list(sessions)
+    return b, clock
+
+
+async def test_fixed_details_are_read_once_and_folder_and_program_every_few_seconds():
+    agent = CountingSession("A")
+    b, clock = counting_bridge(agent)
+    first = (await b.snapshot())[0]
+    assert (first.tty, first.shell_pid, first.cwd, first.job_name) == ("/dev/ttys1", 7, "/p", "claude")
+    assert sorted(agent.calls) == ["jobName", "path", "pid", "screen", "tty"]
+    agent.calls.clear()
+    clock.now += 1
+    again = (await b.snapshot())[0]
+    assert agent.calls == ["screen"]  # an agent's screen every poll, nothing else
+    assert (again.tty, again.shell_pid, again.cwd, again.job_name) == ("/dev/ttys1", 7, "/p", "claude")
+    agent.calls.clear()
+    clock.now += 5
+    await b.snapshot()
+    assert sorted(agent.calls) == ["jobName", "path", "screen"]  # tty and pid never change
+
+
+async def test_idle_shell_screens_are_read_only_every_few_seconds():
+    shell = CountingSession("S", job="zsh")
+    b, clock = counting_bridge(shell)
+    await b.snapshot()
+    shell.calls.clear()
+    clock.now += 1
+    snap = (await b.snapshot())[0]
+    assert shell.calls == [] and snap.screen_text == "hi"  # the last screen, without asking iTerm
+    clock.now += 5
+    await b.snapshot()
+    assert "screen" in shell.calls and "jobName" in shell.calls  # notices an agent starting in it
+
+
+async def test_a_session_that_closes_is_forgotten():
+    a, b_ = CountingSession("A"), CountingSession("B")
+    b, clock = counting_bridge(a, b_)
+    await b.snapshot()
+    b._sessions = lambda: [a]
+    b.app = FakeApp({"A": a})
+    await b.snapshot()
+    assert set(b._meta) == {"A"}
+
+
+async def test_an_unmatched_tmux_tab_is_retried_every_few_seconds_not_every_poll():
+    b, conns = tmux_bridge()
+    b._clock = clock = Clock()
+    await b.snapshot()  # X (same window, pane and folder on both servers) stays untagged
+    assert sum(c.commands.count(c.commands[0]) for c in conns.values()) == 2
+    clock.now += 1
+    await b.snapshot()
+    assert all(len(c.commands) == 1 for c in conns.values())
+    clock.now += 10
+    await b.snapshot()
+    assert all(len(c.commands) == 2 for c in conns.values())
+
+
+async def test_looking_up_a_window_retries_unmatched_tabs_at_once():
+    b, conns = tmux_bridge()
+    b._clock = Clock()
+    await b.snapshot()
+    before = len(conns["c1"].commands)
+    await b.session_for_window("GW", "@2")  # e.g. right after opening that window: don't wait TMUX_RETRY
+    assert len(conns["c1"].commands) == before + 1

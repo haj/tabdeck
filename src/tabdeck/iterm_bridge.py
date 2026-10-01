@@ -1,22 +1,32 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
 
 import iterm2
 
 from .profiles import instance_suffix
 from .registry import Snapshot
+from .status import SHELLS
 
 
 TMUX_TIMEOUT = 5.0
+# Every iTerm API call is a round trip on iTerm's main thread, which also draws and takes your typing:
+# polling every detail of every session each second made iTerm lag. So, per session:
+DETAILS_EVERY = 5.0  # folder and running program; tty and pid never change, so they're read once
+TMUX_RETRY = 10.0  # a tmux tab that matched no server (or two) is matched again this often
 PANES = "list-panes -s -t ={session} -F '#{{window_id}} #{{pane_id}} #{{pane_current_path}}'"
 # Each instance marks its own gateways, so two instances on one Mac never take over each other's.
 GATEWAY_VAR = "user.tabdeck" + instance_suffix().replace("-", "_") + "_gateway"
 
 
 class ItermBridge:
-    def __init__(self) -> None:
+    def __init__(self, clock=time.monotonic) -> None:
+        self._clock = clock
+        # sid -> {"tty", "pid", "path", "job", "screen", "at": when folder and program were read}
+        self._meta: dict[str, dict] = {}
+        self._tmux_tried: dict[str, float] = {}  # unmatched tmux tab -> when it was last matched
         self.connection: iterm2.Connection | None = None
         self.app: iterm2.App | None = None
         # tmux -CC gateways (gateways.py): gateway session id -> server name. Tabs of a gateway's tmux
@@ -80,7 +90,7 @@ class ItermBridge:
         something: iTerm waits for output."""
         return await asyncio.wait_for((await self._connection_of(owner)).async_send_command(command), TMUX_TIMEOUT)
 
-    async def _resolve_tmux_tabs(self) -> dict[str, tuple[str, str, str, str]]:
+    async def _resolve_tmux_tabs(self, retry_now: bool = False) -> dict[str, tuple[str, str, str, str]]:
         """Which gateway each tmux tab belongs to. iTerm doesn't say (a tab's tmux connection id is empty),
         so match its window, pane and folder against each gateway's own pane list; remember matches."""
         live = set(self.gateway_servers)
@@ -90,7 +100,8 @@ class ItermBridge:
             if str(t.tmux_window_id) in ("None", "", "-1"):
                 continue  # not a tmux tab
             for s in t.sessions:
-                if s.session_id not in self._tmux_tabs and s.session_id not in live:
+                if s.session_id not in self._tmux_tabs and s.session_id not in live \
+                        and (retry_now or self._clock() - self._tmux_tried.get(s.session_id, float("-inf")) >= TMUX_RETRY):
                     pending.append((t, s))
         if not pending or not live:
             return self._tmux_tabs
@@ -105,6 +116,7 @@ class ItermBridge:
                 pane, _, path = rest.partition(" ")
                 known.setdefault((window.lstrip("@"), pane, path), []).append((server, owner))
         for t, s in pending:
+            self._tmux_tried[s.session_id] = self._clock()
             p = await s.async_get_variable("tmuxWindowPane")
             if p in (None, ""):
                 continue
@@ -120,7 +132,7 @@ class ItermBridge:
     async def session_for_window(self, owner: str, window_id: str) -> str | None:
         """The iTerm session showing tmux window `window_id` (e.g. "@12") of that gateway, once its tab exists."""
         want = str(window_id).lstrip("@")
-        for sid, (_, own, window, _) in (await self._resolve_tmux_tabs()).items():
+        for sid, (_, own, window, _) in (await self._resolve_tmux_tabs(retry_now=True)).items():
             if own == owner and window == want:
                 return sid
         return None
@@ -165,7 +177,12 @@ class ItermBridge:
     async def snapshot(self) -> list[Snapshot]:
         tagged = await self._resolve_tmux_tabs() if self.gateway_servers else {}
         snaps = []
-        for s in self._sessions():
+        sessions = self._sessions()
+        alive = {s.session_id for s in sessions}
+        for cache in (self._meta, self._tmux_tried):
+            for sid in [sid for sid in cache if sid not in alive]:
+                del cache[sid]
+        for s in sessions:
             if s.session_id in self.gateway_servers:
                 continue  # the gateway itself: an ssh session, not a tab of its own
             try:
@@ -177,17 +194,29 @@ class ItermBridge:
         return snaps
 
     async def _snapshot_one(self, s: iterm2.Session, tmux: tuple | None = None) -> Snapshot:
-        contents = await s.async_get_screen_contents()
+        now = self._clock()
+        m = self._meta.get(s.session_id)
+        fresh = m is None or now - m["at"] >= DETAILS_EVERY
+        if m is None:
+            m = {"tty": await s.async_get_variable("tty") or "",
+                 "pid": int(await s.async_get_variable("pid") or 0), "screen": ""}
+        if fresh:
+            m["path"] = await s.async_get_variable("path") or ""
+            m["job"] = await s.async_get_variable("jobName") or ""
+            m["at"] = now
+        if fresh or m["job"] not in SHELLS:  # an idle shell prompt doesn't change on its own
+            contents = await s.async_get_screen_contents()
+            m["screen"] = "\n".join(contents.line(i).string for i in range(contents.number_of_lines)).rstrip()
+        self._meta[s.session_id] = m
         server, pane = (tmux[0], tmux[3]) if tmux else ("", "")
-        screen = "\n".join(contents.line(i).string for i in range(contents.number_of_lines))
         return Snapshot(
             session_id=s.session_id,
             tab_title=s.name or "",
-            cwd=await s.async_get_variable("path") or "",
-            job_name=await s.async_get_variable("jobName") or "",
-            tty=await s.async_get_variable("tty") or "",
-            shell_pid=int(await s.async_get_variable("pid") or 0),
-            screen_text=screen.rstrip(),
+            cwd=m["path"],
+            job_name=m["job"],
+            tty=m["tty"],
+            shell_pid=m["pid"],
+            screen_text=m["screen"],
             server=server,
             pane=pane,
         )
