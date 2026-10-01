@@ -200,7 +200,11 @@ async def run_agent(config: Config) -> None:
     client = httpx.AsyncClient(verify=cafile or True, headers={"Authorization": f"Bearer {token}"}, timeout=20)
 
     async def utterance(body: dict) -> dict:
-        r = await client.post(hub.rstrip("/") + "/api/utterance", json=body)
+        from .agent_web import HubUnreachable
+        try:
+            r = await client.post(hub.rstrip("/") + "/api/utterance", json=body)
+        except httpx.TransportError as e:  # timeouts, refused, network unreachable
+            raise HubUnreachable(str(e) or type(e).__name__) from e
         r.raise_for_status()
         return r.json()
 

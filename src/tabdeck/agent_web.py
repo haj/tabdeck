@@ -11,11 +11,16 @@ from fastapi.responses import Response
 from . import settings as live_settings
 from .agent import Agent
 from .auth import is_local_request
+from .commands import strip_wake, wake_pattern
 from .config import Config, load_config
 
 HINT = re.compile(r'^[A-Za-z][A-Za-z .\'"()-]{0,60}$')  # e.g. 'Friday ("Hey Friday")': a name, never instructions
 MAC_KEYS = ("mac_tabs", "stt_url", "stt_model")
 RESTART_KEYS = ("hub_url", "agent_token", "hub_ca", "port")  # used when the agent starts
+
+
+class HubUnreachable(Exception):
+    """The hub didn't answer (network down, NetBird reconnecting): the widget should say so."""
 
 
 def create_agent_app(agent: Agent, transcriber, utterance, assistant_hint: str = "Jarvis",
@@ -134,7 +139,12 @@ def create_agent_app(agent: Agent, transcriber, utterance, assistant_hint: str =
         prompt = f"The assistant is called {called}. Tabs: " + ", ".join(names) + "."
         text = await run_in_threadpool(transcriber.transcribe, await audio.read(),
                                        Path(audio.filename or "s.webm").suffix or ".webm", prompt)
-        return await utterance({"text": text, "selected": selected, "wake": wake, "followup": followup,
-                                "compose": compose, "confirming": confirming, "final": final, "length": length})
+        try:
+            return await utterance({"text": text, "selected": selected, "wake": wake, "followup": followup,
+                                    "compose": compose, "confirming": confirming, "final": final, "length": length})
+        except HubUnreachable:
+            # Say "can't reach the server" only to someone talking to the assistant, not to every remark nearby.
+            heard = followup == "1" or strip_wake(text, wake_pattern(config.wake_word)) is not None
+            return {"text": text, "heard": heard, "offline": True}
 
     return app

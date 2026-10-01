@@ -53,6 +53,7 @@ final class AppModel: ObservableObject {
     let capture = AudioCapture()
     private var wake = WakeSession()
     private var announcer = Announcer()
+    private var offlineNotice = OfflineNotice()  // "can't reach the server", at most every 20 s
     private var chunks: [String: [String]] = [:]
     private var readIdx: [String: Int] = [:]
     private var pendingTask: Task<Void, Never>?
@@ -161,6 +162,7 @@ final class AppModel: ObservableObject {
         client.onConnection = { [weak self] ok in
             guard let self else { return }
             if !ok && self.online { self.announcer.reset() }
+            if ok { self.offlineNotice.reset() }
             self.online = ok
         }
         client.connect()
@@ -275,7 +277,6 @@ final class AppModel: ObservableObject {
     }
 
     private func handleUtterance(_ samples: [Float], final: Bool = false) async {
-        guard online else { resumePending(); return }
         let followup = followupAtStart || wake.followupActive(Date()) || pending != nil
         let composeNow = composing && followup
         let confirmingNow = clarifying != nil && followup
@@ -286,6 +287,12 @@ final class AppModel: ObservableObject {
             let r = try await client.voice(wav: wavData(samples: samples), selected: selected, followup: followup,
                                            compose: composeNow, confirming: confirmingNow, final: final,
                                            length: answerLength, hint: nameHint)
+            if r.offline == true {
+                deckLog("hub unreachable (heard: \(r.heard == true))")
+                if r.heard == true { unreachable("I can't reach the TabDeck server. Check your network.") }
+                resumePending()
+                return
+            }
             if r.incomplete == true && !final {
                 deckLog("sounds unfinished, listening for more")
                 holdForMore(samples)
@@ -309,11 +316,21 @@ final class AppModel: ObservableObject {
             } else {
                 await run(action)
             }
+        } catch is URLError {
+            deckLog("voice failed: the TabDeck agent on this Mac isn't answering")
+            unreachable("I can't reach TabDeck on this Mac. Is the agent running?")
+            resumePending()
         } catch {
             deckLog("voice failed: \(error)")
             say("Sorry, I didn't get that.")
             resumePending()
         }
+    }
+
+    /// Say why nothing happens, but not on every utterance while the link is down.
+    private func unreachable(_ message: String) {
+        line = message
+        if offlineNotice.shouldSpeak() { say(message) }
     }
 
     private func refreshFollowupLight() {

@@ -60,4 +60,23 @@ public struct VoiceResponse: Codable {
     public let action: Action?
     /// The speech sounded unfinished; keep listening and send it again together with what follows.
     public let incomplete: Bool?
+    /// The Mac agent couldn't reach the hub (network down); `heard` says whether you spoke to the assistant.
+    public let offline: Bool?
+}
+
+/// When the hub can't be reached, say so, but not to every utterance: at most once per `interval`.
+public struct OfflineNotice {
+    public var interval: TimeInterval
+    private var last: Date?
+
+    public init(interval: TimeInterval = 20) { self.interval = interval }
+
+    public mutating func shouldSpeak(at now: Date = Date()) -> Bool {
+        if let last, now.timeIntervalSince(last) < interval { return false }
+        last = now
+        return true
+    }
+
+    /// Back online: announce the next outage at once.
+    public mutating func reset() { last = nil }
 }

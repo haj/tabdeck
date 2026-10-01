@@ -321,3 +321,37 @@ def test_mac_agent_refuses_proxied_requests(tmp_path):
     client, _, _ = local_settings_client(tmp_path, agent)
     assert client.get("/api/local-settings", headers={"X-Forwarded-For": "203.0.113.7"}).status_code == 403
     assert client.post("/hook", json={}, headers={"Forwarded": "for=203.0.113.7"}).status_code == 403
+
+
+def offline_client(tmp_path, said):
+    from tabdeck.agent_web import HubUnreachable
+    agent, _ = make(tmp_path)
+
+    class T:
+        def transcribe(self, audio, suffix, prompt):
+            return said
+
+    async def utterance(body):
+        raise HubUnreachable("ConnectTimeout")
+    return TestClient(create_agent_app(agent, T(), utterance), base_url="https://testserver", client=("127.0.0.1", 1))
+
+
+def speak(client, followup="0"):
+    return client.post("/api/voice", data={"wake": "1", "followup": followup},
+                       files={"audio": ("s.wav", b"\x00" * 2000, "audio/wav")})
+
+
+def test_voice_says_offline_when_the_hub_cant_be_reached_and_you_spoke_to_it(tmp_path):
+    r = speak(offline_client(tmp_path, "Jarvis, status."))
+    assert r.status_code == 200
+    assert r.json() == {"text": "Jarvis, status.", "heard": True, "offline": True}
+
+
+def test_voice_stays_quiet_offline_when_you_werent_talking_to_it(tmp_path):
+    r = speak(offline_client(tmp_path, "we should get lunch"))
+    assert r.json() == {"text": "we should get lunch", "heard": False, "offline": True}
+
+
+def test_a_followup_counts_as_talking_to_it_even_offline(tmp_path):
+    r = speak(offline_client(tmp_path, "and the tests too"), followup="1")
+    assert r.json()["heard"] is True and r.json()["offline"] is True

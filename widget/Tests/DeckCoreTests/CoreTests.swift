@@ -52,6 +52,20 @@ final class CoreTests: XCTestCase {
             #"{"text":"","heard":true,"action":null,"incomplete":true}"#.utf8))
         XCTAssertEqual(held.incomplete, true)
         XCTAssertNil(ignored.incomplete)
+        let offline = try JSONDecoder().decode(VoiceResponse.self, from: Data(
+            #"{"text":"Jarvis, status.","heard":true,"offline":true}"#.utf8))
+        XCTAssertEqual(offline.offline, true)
+        XCTAssertNil(ignored.offline)
+    }
+
+    func testOfflineNoticeSpeaksAtMostEveryTwentySeconds() {
+        var notice = OfflineNotice()
+        let t0 = Date(timeIntervalSince1970: 1000)
+        XCTAssertTrue(notice.shouldSpeak(at: t0))
+        XCTAssertFalse(notice.shouldSpeak(at: t0.addingTimeInterval(5)))  // asking again right away: stay quiet
+        XCTAssertTrue(notice.shouldSpeak(at: t0.addingTimeInterval(21)))
+        notice.reset()  // back online: the next outage is announced at once
+        XCTAssertTrue(notice.shouldSpeak(at: t0.addingTimeInterval(22)))
     }
 
     func tab(_ id: String, _ status: String, seen: Bool = false, name: String? = nil, message: String = "msg") -> TabState {
