@@ -350,7 +350,8 @@ def test_dangling_message_always_asks(env, tmp_path):
 
 def test_unfinished_speech_asks_widget_to_keep_listening(env, tmp_path):
     client, interp = llm_client(env, tmp_path, {"action": "status"})
-    assert llm_voice(client, env, "Jarvis.", wake="1") == {"text": "", "heard": True, "action": None, "incomplete": True}
+    # The wake word alone is answered at once ("Yes?"), not held: the widget then listens for the request.
+    assert llm_voice(client, env, "Jarvis.", wake="1")["action"] == {"type": "speak", "text": "Yes?"}
     assert llm_voice(client, env, "Jarvis, tell Atlas to", wake="1")["incomplete"] is True
     assert interp.calls == []
     assert llm_voice(client, env, "Jarvis.", wake="1", final="1")["action"] == {"type": "speak", "text": "Yes?"}
@@ -505,7 +506,7 @@ def test_utterance_endpoint_matches_voice_behaviour(env, tmp_path):
     body = client.post("/api/utterance", json={"text": "Jarvis, what's going on?", "wake": "1"}).json()
     assert body["heard"] is True and body["action"]["type"] == "speak"
     assert client.post("/api/utterance", json={"text": "pass the salt", "wake": "1"}).json()["heard"] is False
-    assert client.post("/api/utterance", json={"text": "Jarvis.", "wake": "1"}).json()["incomplete"] is True
+    assert client.post("/api/utterance", json={"text": "Jarvis.", "wake": "1"}).json()["action"]["text"] == "Yes?"
 
 
 def test_text_to_tmux_shell_pane_is_refused(env):

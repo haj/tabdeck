@@ -63,7 +63,7 @@ final class AppModel: ObservableObject {
     /// Follow-up state captured when speech *starts*: a long sentence begun inside the window still counts.
     private var followupAtStart = false
     /// Jarvis asked "What should I send?" and the next utterance is the message.
-    private var composing = false
+    private var composing = false { didSet { capture.dictation = composing } }
     /// Jarvis asked "Did you mean ...?" about this message.
     private var clarifying: Action?
     /// Unfinished speech waiting for the rest of the sentence.

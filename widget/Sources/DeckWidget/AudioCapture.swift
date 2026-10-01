@@ -20,6 +20,13 @@ final class AudioCapture {
     private var utterance: [Float] = []
     private let lock = NSLock()
     private var _paused = false
+    private var _dictation = false
+
+    /// While dictating a message, allow longer pauses before the utterance ends.
+    var dictation: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return _dictation }
+        set { lock.lock(); _dictation = newValue; lock.unlock() }
+    }
 
     var paused: Bool {
         get { lock.lock(); defer { lock.unlock() }; return _paused }
@@ -93,6 +100,7 @@ final class AudioCapture {
         }
         pending += UnsafeBufferPointer(start: channel[0], count: Int(out.frameLength))
         let n = VAD.frameSamples
+        vad.endSilenceFrames = dictation ? VAD.dictationEndSilenceFrames : VAD.commandEndSilenceFrames
         while pending.count >= n {
             let frame = Array(pending[0..<n])
             pending.removeFirst(n)

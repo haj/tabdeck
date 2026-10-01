@@ -16,11 +16,20 @@ final class VADTests: XCTestCase {
         XCTAssertFalse(vad.inSpeech)
     }
 
-    func testSpeechThenSilenceEndsUtterance() {
+    func testACommandEndsAfterAShortSilence() {
         var vad = VAD()
         _ = feed(&vad, 0.001, seconds: 1)
         XCTAssertEqual(feed(&vad, 0.1, seconds: 1), [.started])
-        XCTAssertEqual(feed(&vad, 0.001, seconds: 1.4), [])   // a natural pause does not end the sentence
+        XCTAssertEqual(feed(&vad, 0.001, seconds: 0.7), [])
+        XCTAssertEqual(feed(&vad, 0.001, seconds: 0.2), [.ended])  // ~0.8 s: "Hey Jarvis" isn't kept waiting
+    }
+
+    func testDictationAllowsLongerPauses() {
+        var vad = VAD()
+        vad.endSilenceFrames = VAD.dictationEndSilenceFrames
+        _ = feed(&vad, 0.001, seconds: 1)
+        XCTAssertEqual(feed(&vad, 0.1, seconds: 1), [.started])
+        XCTAssertEqual(feed(&vad, 0.001, seconds: 1.4), [])   // a natural pause does not end the message
         XCTAssertEqual(feed(&vad, 0.001, seconds: 0.2), [.ended])
     }
 
@@ -39,6 +48,7 @@ final class VADTests: XCTestCase {
 
     func testLongDictationWithPausesStaysOneUtterance() {
         var vad = VAD()
+        vad.endSilenceFrames = VAD.dictationEndSilenceFrames
         _ = feed(&vad, 0.001, seconds: 1)
         var events: [VADEvent] = []
         for _ in 0..<10 {

@@ -10,7 +10,12 @@ public struct VAD {
     public var startFactor: Float = 3
     public var minFloor: Float = 0.002
     public var minSpeechFrames = 20      // 0.4 s
-    public var endSilenceFrames = 75     // 1.5 s: people pause mid-sentence
+    /// Silence that ends a command: short, so "Hey Jarvis" is answered quickly. A command cut off
+    /// mid-sentence is fine: the hub hears it trail off and the widget keeps listening.
+    public static let commandEndSilenceFrames = 40      // 0.8 s
+    /// Silence that ends a dictated message: people pause mid-sentence.
+    public static let dictationEndSilenceFrames = 75    // 1.5 s
+    public var endSilenceFrames = VAD.commandEndSilenceFrames
     public var maxFrames = 1500          // 30 s: room for real dictation
 
     public private(set) var floor: Float

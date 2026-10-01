@@ -645,7 +645,7 @@ def create_app(*, registry: Registry, bridge, auth: Auth, transcriber, config: C
                 if followup != "1":
                     return ignored  # not addressed to Jarvis: drop without logging
                 addressed, rest = False, text
-            if final != "1" and (not rest or _dangling(rest) or TELL_NO_MESSAGE.match(normalize(rest))):
+            if final != "1" and rest and (_dangling(rest) or TELL_NO_MESSAGE.match(normalize(rest))):
                 # Sounds unfinished ("Jarvis ...", "tell api to ..."): the widget keeps listening
                 # and sends the whole thing again, with final=1 if nothing more comes.
                 return {"text": "", "heard": True, "action": None, "incomplete": True}
