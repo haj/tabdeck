@@ -85,21 +85,46 @@ def make_transcriber(config: Config):
     return Transcriber(config.whisper_model)
 
 
-async def poll_loop(registry: Registry, bridge) -> None:
+class Backoff:
+    """How long to wait before reconnecting to iTerm. Reconnecting every few seconds churned through
+    thousands of connections, and iTerm keeps a socket for each one until its API stops answering.
+    So wait 3 s, 6 s, 12 s ... up to a minute, and start over only after a connection lasted a minute."""
+
+    def __init__(self, first: float = 3.0, cap: float = 60.0, healthy: float = 60.0, clock=time.monotonic):
+        self.first, self.cap, self.healthy, self.clock = first, cap, healthy, clock
+        self.failures, self.since, self.reason, self.should_log = 0, None, None, True
+
+    def connected(self) -> None:
+        self.since = self.clock()
+
+    def failed(self, reason: str) -> float:
+        if self.since is not None and self.clock() - self.since >= self.healthy:
+            self.failures, self.reason = 0, None
+        self.since = None
+        self.failures += 1
+        self.should_log, self.reason = reason != self.reason, reason  # once per problem, not per retry
+        return min(self.cap, self.first * 2 ** (self.failures - 1))
+
+
+async def poll_loop(registry: Registry, bridge, sleep=asyncio.sleep, backoff: Backoff | None = None) -> None:
+    backoff = backoff or Backoff()
     while True:
         try:
             if not bridge.connected:
                 await bridge.connect()
+                backoff.connected()
                 log.info("connected to iTerm2")
             await poll_once(registry, bridge)
-            await asyncio.sleep(1)
+            await sleep(1)
         except asyncio.CancelledError:
             raise
         except Exception as e:  # noqa: BLE001 - iTerm quit, API disabled, connection dropped
-            log.warning("session source unavailable: %s", e)
+            wait = backoff.failed(str(e) or type(e).__name__)
+            if backoff.should_log:
+                log.warning("session source unavailable: %s (retrying, waiting up to %ds)", e, backoff.cap)
             await bridge.reset()
             registry.set_iterm_ok(False)
-            await asyncio.sleep(3)
+            await sleep(wait)
 
 
 async def ports_loop(registry: Registry, forwarders, config: Config) -> None:

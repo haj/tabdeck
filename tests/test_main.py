@@ -1,3 +1,7 @@
+import asyncio
+
+import pytest
+
 from tabdeck.config import Config
 from tabdeck.main import refresh_urls
 from tabdeck.registry import Registry, Snapshot
@@ -96,3 +100,48 @@ def test_allow_public_is_an_explicit_setting(tmp_path):
     assert load_config(tmp_path).allow_public is False
     (tmp_path / "settings.json").write_text(json.dumps({"allow_public": True}))
     assert load_config(tmp_path).allow_public is True
+
+
+def test_backoff_doubles_up_to_a_minute_and_resets_only_after_a_healthy_minute():
+    from tabdeck.main import Backoff
+    now = [0.0]
+    b = Backoff(clock=lambda: now[0])
+    assert [b.failed("x") for _ in range(7)] == [3, 6, 12, 24, 48, 60, 60]
+    b.connected()
+    now[0] += 10
+    assert b.failed("x") == 60  # dropped again within a minute: still churning, keep waiting
+    b.connected()
+    now[0] += 61
+    assert b.failed("x") == 3   # it stayed up a minute: a fresh problem starts over
+
+
+def test_backoff_logs_a_problem_once_not_every_retry():
+    from tabdeck.main import Backoff
+    b = Backoff(clock=lambda: 0.0)
+    logged = []
+    for reason in ["refused", "refused", "refused", "timeout", "timeout"]:
+        b.failed(reason)
+        logged.append(b.should_log)
+    assert logged == [True, False, False, True, False]
+
+
+async def test_poll_loop_waits_longer_while_iterm_keeps_failing():
+    from tabdeck.main import poll_loop
+    waits = []
+
+    class Broken:
+        connected = False
+
+        async def connect(self):
+            raise OSError("did not receive a valid HTTP response")
+
+        async def reset(self):
+            pass
+
+    async def sleep(seconds):
+        waits.append(seconds)
+        if len(waits) == 5:
+            raise asyncio.CancelledError
+    with pytest.raises(asyncio.CancelledError):
+        await poll_loop(Registry(), Broken(), sleep=sleep)
+    assert waits == [3, 6, 12, 24, 48]
